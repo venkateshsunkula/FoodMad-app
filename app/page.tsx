@@ -145,7 +145,7 @@ export default function Home() {
         {showAddVendor && (
           <AddVendor
             vendors={vendors}
-            userLocation={userLocation}
+            userLocation={userLocation ?? { lat: 17.385, lng: 78.4867 }}
             userId={authUser?.id}
             onClose={() => setShowAddVendor(false)}
             onVendorAdded={handleVendorAdded}
