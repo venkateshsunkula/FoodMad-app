@@ -3,13 +3,14 @@
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps'
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
+import LogMeal from './log'
 
 export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [vendors, setVendors] = useState<any[]>([])
   const [selectedVendor, setSelectedVendor] = useState<any | null>(null)
+  const [showLog, setShowLog] = useState(false)
 
-  // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -27,22 +28,21 @@ export default function Home() {
     }
   }, [])
 
-  // Fetch vendors from Supabase
   useEffect(() => {
-    async function fetchVendors() {
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-
-      if (error) {
-        console.error('Error fetching vendors:', error)
-      } else if (data) {
-        console.log('Vendors:', data)
-        setVendors(data)
-      }
-    }
     fetchVendors()
   }, [])
+
+  async function fetchVendors() {
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*')
+
+    if (error) {
+      console.error('Error fetching vendors:', error)
+    } else if (data) {
+      setVendors(data)
+    }
+  }
 
   if (!userLocation) {
     return (
@@ -78,6 +78,7 @@ export default function Home() {
         </Map>
       </APIProvider>
 
+      {/* Vendor popup */}
       {selectedVendor && (
         <div style={{
           position: 'absolute',
@@ -120,6 +121,41 @@ export default function Home() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* + Button */}
+      <button
+        onClick={() => setShowLog(true)}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          border: 'none',
+          background: '#F59E0B',
+          color: 'black',
+          fontSize: 28,
+          fontWeight: 700,
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(245,158,11,0.4)',
+          zIndex: 100,
+        }}
+      >
+        +
+      </button>
+
+      {/* Log meal screen */}
+      {showLog && (
+        <LogMeal
+          vendors={vendors}
+          onClose={() => {
+            setShowLog(false)
+            fetchVendors()
+          }}
+        />
       )}
     </div>
   )
