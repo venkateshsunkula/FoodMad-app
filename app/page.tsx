@@ -116,6 +116,10 @@ export default function Home() {
 
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+      {/* DEBUG — remove after testing */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'red', color: 'white', zIndex: 9999, padding: 10, textAlign: 'center', fontSize: 16, fontWeight: 'bold' }}>
+        APP LOADED ✓
+      </div>
 
       {/* Map — inside APIProvider */}
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
