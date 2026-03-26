@@ -112,13 +112,7 @@ export default function Home() {
     setShowLog(true)
   }
 
-  if (!userLocation) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#111', color: 'white' }}>
-        <p>Loading map...</p>
-      </div>
-    )
-  }
+  const mapCenter = userLocation ?? { lat: 17.385, lng: 78.4867 }
 
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
@@ -126,7 +120,7 @@ export default function Home() {
       {/* Map — inside APIProvider */}
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
         <Map
-          defaultCenter={userLocation}
+          defaultCenter={mapCenter}
           defaultZoom={15}
           mapId="foodmad-map"
           style={{ width: '100%', height: '100%' }}
