@@ -1,20 +1,47 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from './lib/supabase'
-import { useRouter } from 'next/navigation'
+import { compressImage } from './lib/compress'
 
 const TAGS = ['spicy', 'veg', 'non-veg', 'sweet', 'must-try', 'comfort food', 'late night', 'seasonal']
 
-export default function LogMeal({ vendors, onClose }: { vendors: any[], onClose: () => void }) {
-  const [selectedVendor, setSelectedVendor] = useState<any | null>(null)
+export default function LogMeal({
+  vendors,
+  onClose,
+  preSelectedVendor,
+  userId,
+}: {
+  vendors: any[]
+  onClose: () => void
+  preSelectedVendor?: any
+  userId?: string
+}) {
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(preSelectedVendor ?? null)
   const [dishName, setDishName] = useState('')
   const [rating, setRating] = useState(0)
   const [price, setPrice] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(preSelectedVendor ? 2 : 1)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  function removePhoto() {
+    setPhotoFile(null)
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   function toggleTag(tag: string) {
     setSelectedTags(prev =>
@@ -33,25 +60,47 @@ export default function LogMeal({ vendors, onClose }: { vendors: any[], onClose:
     else if (hour >= 15 && hour < 21) timeOfDay = 'evening'
     else if (hour >= 21) timeOfDay = 'late'
 
+    // Upload photo if one was selected
+    let photoUrl: string | null = null
+    if (photoFile) {
+      try {
+        const compressed = await compressImage(photoFile)
+        const fileName = `meal_${Date.now()}.jpg`
+        const { error: uploadError } = await supabase.storage
+          .from('photos')
+          .upload(fileName, compressed, { contentType: 'image/jpeg', upsert: false })
+        if (uploadError) throw uploadError
+        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName)
+        photoUrl = urlData.publicUrl
+      } catch (err) {
+        setSaving(false)
+        alert('Photo upload failed. Try again or remove the photo.')
+        return
+      }
+    }
+
     const { error } = await supabase.from('meal_logs').insert({
       vendor_id: selectedVendor.id,
+      user_id: userId ?? null,
       dish_name: dishName,
       rating,
       price_inr: price ? parseInt(price) : null,
       tags: selectedTags,
       note: note || null,
+      photo_url: photoUrl,
       time_of_day: timeOfDay,
+      logged_at: new Date().toISOString(),
       lat: selectedVendor.lat,
       lng: selectedVendor.lng,
     })
 
     setSaving(false)
     if (error) {
-     console.error('Error saving meal log:', JSON.stringify(error))
+      console.error('Error saving meal log:', JSON.stringify(error))
       alert('Error saving. Check console.')
-    }  else {
-  alert('Meal saved!')
-  onClose()
+    } else {
+      alert('Meal saved!')
+      onClose()
     }
   }
 
@@ -212,6 +261,66 @@ export default function LogMeal({ vendors, onClose }: { vendors: any[], onClose:
             ))}
           </div>
 
+          {/* Photo */}
+          <label style={{ fontSize: 14, color: '#9CA3AF', display: 'block', marginBottom: 6 }}>
+            Photo (optional)
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoChange}
+            style={{ display: 'none' }}
+          />
+          {!photoPreview ? (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%',
+                padding: 14,
+                borderRadius: 10,
+                border: '1px dashed #333',
+                background: '#1a1a1a',
+                color: '#9CA3AF',
+                fontSize: 14,
+                cursor: 'pointer',
+                marginBottom: 20,
+              }}
+            >
+              📷 Add photo
+            </button>
+          ) : (
+            <div style={{ position: 'relative', marginBottom: 20 }}>
+              <img
+                src={photoPreview}
+                alt="Preview"
+                style={{ width: '100%', borderRadius: 10, maxHeight: 220, objectFit: 'cover' }}
+              />
+              <button
+                onClick={removePhoto}
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  background: 'rgba(0,0,0,0.6)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: 28,
+                  height: 28,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Note */}
           <label style={{ fontSize: 14, color: '#9CA3AF', display: 'block', marginBottom: 6 }}>
             Note (optional)
@@ -251,7 +360,7 @@ export default function LogMeal({ vendors, onClose }: { vendors: any[], onClose:
               cursor: dishName && rating > 0 ? 'pointer' : 'default',
             }}
           >
-            {saving ? 'Saving...' : 'Save meal'}
+            {saving ? (photoFile ? 'Uploading...' : 'Saving...') : 'Save meal'}
           </button>
         </div>
       )}

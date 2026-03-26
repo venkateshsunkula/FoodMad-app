@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Dark background with rounded corners -->
+  <rect width="512" height="512" rx="96" fill="#111111"/>
+  <!-- Map pin body (circle) -->
+  <circle cx="256" cy="210" r="110" fill="#F59E0B"/>
+  <!-- Map pin tail -->
+  <path d="M256 315 Q190 390 200 450 Q256 490 312 450 Q322 390 256 315 Z" fill="#F59E0B"/>
+  <!-- Inner circle cutout -->
+  <circle cx="256" cy="210" r="46" fill="#111111"/>
+</svg>
