@@ -7,7 +7,7 @@ export default function BottomNav({
   activePage,
   onPlusClick,
 }: {
-  activePage: 'map' | 'search' | 'feed' | 'profile'
+  activePage: 'home' | 'map' | 'search' | 'feed' | 'profile'
   onPlusClick: () => void
 }) {
   const [plusPressed, setPlusPressed] = useState(false)
@@ -48,8 +48,25 @@ export default function BottomNav({
           minHeight: 60,
         }}>
 
-          {/* Map */}
+          {/* Home */}
           <Link href="/" className="nav-item" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none', position: 'relative', padding: '4px 0' }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 12,
+              background: activePage === 'home' ? 'rgba(245,158,11,0.15)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 0.2s',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activePage === 'home' ? '#F59E0B' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+                <path d="M9 21V12h6v9"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: activePage === 'home' ? 700 : 500, color: activePage === 'home' ? '#F59E0B' : '#6B7280', letterSpacing: '0.02em' }}>Home</span>
+            <div className="nav-dot" style={{ width: activePage === 'home' ? 4 : 0, height: 4, borderRadius: 2, background: '#F59E0B', position: 'absolute', bottom: -2 }} />
+          </Link>
+
+          {/* Map */}
+          <Link href="/map" className="nav-item" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none', position: 'relative', padding: '4px 0' }}>
             <div style={{
               width: 36, height: 36, borderRadius: 12,
               background: activePage === 'map' ? 'rgba(245,158,11,0.15)' : 'transparent',
@@ -64,23 +81,6 @@ export default function BottomNav({
             </div>
             <span style={{ fontSize: 10, fontWeight: activePage === 'map' ? 700 : 500, color: activePage === 'map' ? '#F59E0B' : '#6B7280', letterSpacing: '0.02em' }}>Map</span>
             <div className="nav-dot" style={{ width: activePage === 'map' ? 4 : 0, height: 4, borderRadius: 2, background: '#F59E0B', position: 'absolute', bottom: -2 }} />
-          </Link>
-
-          {/* Search */}
-          <Link href="/search" className="nav-item" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none', position: 'relative', padding: '4px 0' }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 12,
-              background: activePage === 'search' ? 'rgba(245,158,11,0.15)' : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.2s',
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activePage === 'search' ? '#F59E0B' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: 10, fontWeight: activePage === 'search' ? 700 : 500, color: activePage === 'search' ? '#F59E0B' : '#6B7280', letterSpacing: '0.02em' }}>Search</span>
-            <div className="nav-dot" style={{ width: activePage === 'search' ? 4 : 0, height: 4, borderRadius: 2, background: '#F59E0B', position: 'absolute', bottom: -2 }} />
           </Link>
 
           {/* Log — center action button */}
@@ -110,22 +110,21 @@ export default function BottomNav({
             </button>
           </div>
 
-          {/* Feed */}
-          <Link href="/feed" className="nav-item" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none', position: 'relative', padding: '4px 0' }}>
+          {/* Search */}
+          <Link href="/search" className="nav-item" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none', position: 'relative', padding: '4px 0' }}>
             <div style={{
               width: 36, height: 36, borderRadius: 12,
-              background: activePage === 'feed' ? 'rgba(245,158,11,0.15)' : 'transparent',
+              background: activePage === 'search' ? 'rgba(245,158,11,0.15)' : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 0.2s',
             }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activePage === 'feed' ? '#F59E0B' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 11a9 9 0 0 1 9 9"/>
-                <path d="M4 4a16 16 0 0 1 16 16"/>
-                <circle cx="5" cy="19" r="1" fill={activePage === 'feed' ? '#F59E0B' : '#6B7280'} stroke="none"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activePage === 'search' ? '#F59E0B' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
             </div>
-            <span style={{ fontSize: 10, fontWeight: activePage === 'feed' ? 700 : 500, color: activePage === 'feed' ? '#F59E0B' : '#6B7280', letterSpacing: '0.02em' }}>Feed</span>
-            <div className="nav-dot" style={{ width: activePage === 'feed' ? 4 : 0, height: 4, borderRadius: 2, background: '#F59E0B', position: 'absolute', bottom: -2 }} />
+            <span style={{ fontSize: 10, fontWeight: activePage === 'search' ? 700 : 500, color: activePage === 'search' ? '#F59E0B' : '#6B7280', letterSpacing: '0.02em' }}>Search</span>
+            <div className="nav-dot" style={{ width: activePage === 'search' ? 4 : 0, height: 4, borderRadius: 2, background: '#F59E0B', position: 'absolute', bottom: -2 }} />
           </Link>
 
           {/* Profile */}

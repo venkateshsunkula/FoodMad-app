@@ -1,0 +1,435 @@
+'use client'
+
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '../lib/supabase'
+import LogMeal from '../log'
+import AddVendor from '../add-vendor'
+import CityPicker from '../city-picker'
+import BottomNav from '../components/bottom-nav'
+
+const CITIES = [
+  { name: 'Hyderabad', lat: 17.385,  lng: 78.4867 },
+  { name: 'Bangalore', lat: 12.9716, lng: 77.5946 },
+  { name: 'Delhi',     lat: 28.6139, lng: 77.2090 },
+  { name: 'Mumbai',    lat: 19.0760, lng: 72.8777 },
+  { name: 'Chennai',   lat: 13.0827, lng: 80.2707 },
+  { name: 'Pune',      lat: 18.5204, lng: 73.8567 },
+  { name: 'Kolkata',   lat: 22.5726, lng: 88.3639 },
+  { name: 'Ahmedabad', lat: 23.0225, lng: 72.5714 },
+  { name: 'Guntur',    lat: 16.3067, lng: 80.4365 },
+]
+
+function CityPanner({ target }: { target: { lat: number; lng: number } | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (map && target) { map.panTo(target); map.setZoom(13) }
+  }, [map, target])
+  return null
+}
+
+export default function MapPage() {
+  const router = useRouter()
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [vendors, setVendors] = useState<any[]>([])
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(null)
+  const [showLog, setShowLog] = useState(false)
+  const [showAddVendor, setShowAddVendor] = useState(false)
+  const [showActionMenu, setShowActionMenu] = useState(false)
+  const [logPreSelected, setLogPreSelected] = useState<any | null>(null)
+
+  const [authUser, setAuthUser] = useState<any>(null)
+  const [dbUser, setDbUser] = useState<any>(null)
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false)
+  const [showCityPicker, setShowCityPicker] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'log' | 'add-vendor' | null>(null)
+  const [signingIn, setSigningIn] = useState(false)
+  const [pwaSignInOpen, setPwaSignInOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showCitySwitcher, setShowCitySwitcher] = useState(false)
+  const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null)
+  const [activeCity, setActiveCity] = useState<string>('')
+  const [streakReminder, setStreakReminder] = useState<{ days: number } | null>(null)
+
+  // Handle ?log=1 and ?vendor=id query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('log') === '1') {
+      // Store intent; will open log once auth resolves
+      setPendingAction('log')
+    }
+  }, [])
+
+  // GPS
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => setUserLocation({ lat: 17.385, lng: 78.4867 })
+      )
+    }
+  }, [])
+
+  useEffect(() => { fetchVendors() }, [])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null)
+      if (session?.user) loadDbUser(session.user)
+      else checkCookieSession()
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null)
+      if (session?.user) loadDbUser(session.user)
+      else setDbUser(null)
+    })
+
+    const onFocus = () => { if (!authUser) checkCookieSession() }
+    document.addEventListener('visibilitychange', onFocus)
+
+    return () => { subscription.unsubscribe(); document.removeEventListener('visibilitychange', onFocus) }
+  }, [])
+
+  async function checkCookieSession() {
+    const match = document.cookie.match(/foodmad_rt=([^;]+)/)
+    if (!match) return
+    const { data } = await supabase.auth.refreshSession({ refresh_token: decodeURIComponent(match[1]) })
+    if (data.session) {
+      setAuthUser(data.session.user)
+      loadDbUser(data.session.user)
+      document.cookie = 'foodmad_rt=; path=/; max-age=0'
+    }
+  }
+
+  async function checkStreak(userId: string) {
+    const { data: logs } = await supabase
+      .from('meal_logs').select('logged_at').eq('user_id', userId)
+      .order('logged_at', { ascending: false }).limit(60)
+    if (!logs?.length) return
+    const dates = [...new Set(logs.map((l: any) => l.logged_at?.slice(0, 10)))].filter(Boolean).sort().reverse() as string[]
+    const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    if (dates[0] === today) return
+    if (dates[0] !== yesterday) return
+    let streak = 0, prev = new Date(yesterday)
+    for (const d of dates) {
+      const cur = new Date(d)
+      if (Math.round((prev.getTime() - cur.getTime()) / 86400000) <= 1) { streak++; prev = cur } else break
+    }
+    if (streak >= 2) setStreakReminder({ days: streak })
+  }
+
+  async function fetchUnreadCount(userId: string) {
+    const { count } = await supabase
+      .from('notifications').select('*', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('read', false)
+    setUnreadCount(count ?? 0)
+    if (count && count > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      if (!sessionStorage.getItem('foodmad_notified')) {
+        sessionStorage.setItem('foodmad_notified', '1')
+        new Notification('foodmad', { body: `You have ${count} new notification${count > 1 ? 's' : ''}`, icon: '/icons/icon-192.png' })
+      }
+    }
+  }
+
+  async function loadDbUser(user: any) {
+    fetchUnreadCount(user.id)
+    checkStreak(user.id)
+    const { data } = await supabase.from('users').select('*').eq('id', user.id).single()
+    if (data) {
+      setDbUser(data)
+      if (!data.city) setShowCityPicker(true)
+      else {
+        // Apply any pending log intent from query param
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('log') === '1') { setPendingAction(null); setShowLog(true) }
+      }
+    } else {
+      setShowCityPicker(true)
+    }
+  }
+
+  async function handleCitySelect(city: string) {
+    if (!authUser) return
+    await supabase.from('users').update({ city }).eq('id', authUser.id)
+    setDbUser((prev: any) => ({ ...prev, city }))
+    setShowCityPicker(false)
+    if (pendingAction === 'log') { setPendingAction(null); setShowLog(true) }
+    else if (pendingAction === 'add-vendor') { setPendingAction(null); setShowAddVendor(true) }
+    else setPendingAction(null)
+  }
+
+  async function handleSignIn() {
+    setSigningIn(true)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+
+    if (isStandalone) {
+      const { data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback?pwa=1`, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
+      })
+      if (data?.url) window.open(data.url, '_blank')
+      setSigningIn(false)
+      setPwaSignInOpen(true)
+    } else {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
+      })
+    }
+  }
+
+  function requireAuth(action: 'log' | 'add-vendor'): boolean {
+    if (authUser) return true
+    setPendingAction(action)
+    setShowActionMenu(false)
+    setShowSignInPrompt(true)
+    return false
+  }
+
+  async function fetchVendors() {
+    const { data, error } = await supabase.from('vendors').select('*')
+    if (error) console.error('Error fetching vendors:', error)
+    else if (data) setVendors(data)
+  }
+
+  function handleVendorAdded(newVendor: any) {
+    setVendors(prev => [...prev, newVendor])
+    setShowAddVendor(false)
+    setLogPreSelected(newVendor)
+    setShowLog(true)
+  }
+
+  const mapCenter = userLocation ?? { lat: 17.385, lng: 78.4867 }
+
+  const FILTERS = [
+    { key: 'all', label: '✦ All' },
+    { key: 'manual', label: '📍 Street Vendors' },
+    { key: 'google', label: '🍴 Restaurants' },
+    { key: 'Chaat', label: 'Chaat' },
+    { key: 'Momos', label: 'Momos' },
+    { key: 'Biryani', label: 'Biryani' },
+    { key: 'South Indian', label: 'South Indian' },
+    { key: 'North Indian', label: 'North Indian' },
+    { key: 'Chinese', label: 'Chinese' },
+    { key: 'Tea/Coffee', label: 'Tea/Coffee' },
+    { key: 'Dosa', label: 'Dosa' },
+    { key: 'Sweets', label: 'Sweets' },
+    { key: 'Rolls/Wraps', label: 'Rolls/Wraps' },
+  ]
+
+  const filteredVendors = vendors.filter(v => {
+    if (!v.lat || !v.lng) return false
+    if (activeFilter === 'all') return true
+    if (activeFilter === 'manual' || activeFilter === 'google') return v.source === activeFilter
+    return v.cuisine_tags?.some((t: string) => t.toLowerCase() === activeFilter.toLowerCase())
+  })
+
+  return (
+    <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+
+      {/* City switcher button */}
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', left: 16, zIndex: 100 }}>
+        <button
+          onClick={() => setShowCitySwitcher(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 24, background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.4)' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          {activeCity || 'My Location'}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      {/* Filter chips */}
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 68px)', left: 0, right: 0, zIndex: 100, display: 'flex', gap: 8, overflowX: 'auto', padding: '0 16px', scrollbarWidth: 'none' }}>
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setActiveFilter(f.key)}
+            style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: `1px solid ${activeFilter === f.key ? '#F59E0B' : 'rgba(255,255,255,0.15)'}`, background: activeFilter === f.key ? '#F59E0B' : 'rgba(10,10,10,0.8)', color: activeFilter === f.key ? 'black' : 'white', fontSize: 13, fontWeight: activeFilter === f.key ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(10px)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Map */}
+      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+        <Map defaultCenter={mapCenter} defaultZoom={15} mapId="foodmad-map" style={{ width: '100%', height: '100%' }} onClick={() => { setSelectedVendor(null); setShowActionMenu(false) }}>
+          <CityPanner target={mapTarget} />
+          {filteredVendors.map((vendor) => (
+            <AdvancedMarker key={vendor.id} position={{ lat: vendor.lat, lng: vendor.lng }} onClick={() => { setSelectedVendor(vendor); setShowActionMenu(false) }}>
+              <Pin background={vendor.source === 'manual' ? '#F59E0B' : '#9CA3AF'} borderColor={vendor.source === 'manual' ? '#D97706' : '#6B7280'} glyphColor="#FFFFFF" />
+            </AdvancedMarker>
+          ))}
+        </Map>
+        {showAddVendor && (
+          <AddVendor vendors={vendors} userLocation={userLocation ?? { lat: 17.385, lng: 78.4867 }} userId={authUser?.id} onClose={() => setShowAddVendor(false)} onVendorAdded={handleVendorAdded} />
+        )}
+      </APIProvider>
+
+      {/* Sign-in / avatar — top right */}
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {authUser && (
+          <Link href="/notifications" style={{ position: 'relative', textDecoration: 'none' }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </div>
+            {unreadCount > 0 && (
+              <div style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, background: '#EF4444', border: '2px solid #0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'white', padding: '0 3px' }}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
+          </Link>
+        )}
+        {authUser ? (
+          <button onClick={() => router.push('/profile')} title="Profile" style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid #F59E0B', padding: 0, overflow: 'hidden', cursor: 'pointer', background: '#333', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
+            <span style={{ color: 'white', fontSize: 18, position: 'absolute' }}>{(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}</span>
+            {authUser.user_metadata?.avatar_url && (
+              <img src={authUser.user_metadata.avatar_url} alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+            )}
+          </button>
+        ) : (
+          <button onClick={handleSignIn} disabled={signingIn} style={{ padding: '10px 18px', borderRadius: 24, border: '1px solid #F59E0B', background: signingIn ? '#F59E0B' : 'rgba(10,10,10,0.85)', color: signingIn ? '#000' : '#F59E0B', fontSize: 14, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, backdropFilter: 'blur(12px)', boxShadow: '0 2px 16px rgba(0,0,0,0.5)' }}>
+            {signingIn ? (
+              <><span style={{ width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Signing in…</>
+            ) : (
+              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#F59E0B"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"/></svg>Sign in</>
+            )}
+          </button>
+        )}
+      </div>
+
+      {pwaSignInOpen && !authUser && (
+        <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #F59E0B', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 24, flexShrink: 0 }}>↩</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: 'white' }}>Finish sign-in in Safari</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Then come back here — you'll be signed in automatically</p>
+            </div>
+            <button onClick={() => { setPwaSignInOpen(false); checkCookieSession() }} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {activeFilter !== 'all' && (
+        <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 116px)', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+          <div style={{ background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(10px)', border: '1px solid #333', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+            {filteredVendors.length === 0 ? 'No matches' : `${filteredVendors.length} on map`}
+          </div>
+        </div>
+      )}
+
+      {/* Vendor popup */}
+      {selectedVendor && (
+        <div style={{ position: 'fixed', bottom: 72, left: 16, right: 16, background: '#1a1a1a', color: 'white', borderRadius: 12, padding: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 100 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: 18 }}>{selectedVendor.name}</h3>
+            <span style={{ background: selectedVendor.source === 'manual' ? '#F59E0B' : '#6B7280', color: 'black', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+              {selectedVendor.source === 'manual' ? 'Vendor' : 'Restaurant'}
+            </span>
+          </div>
+          <p style={{ margin: '8px 0 4px', color: '#9CA3AF', fontSize: 14 }}>{selectedVendor.type?.replace('_', ' ')} • {selectedVendor.hours}</p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            {selectedVendor.cuisine_tags?.map((tag: string) => (
+              <span key={tag} style={{ background: '#333', padding: '4px 10px', borderRadius: 16, fontSize: 12, color: '#E5E7EB' }}>{tag}</span>
+            ))}
+          </div>
+          <Link href={`/vendor/${selectedVendor.id}`} style={{ display: 'block', marginTop: 14, padding: '10px 0', borderRadius: 8, background: '#F59E0B', color: 'black', textAlign: 'center', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+            View details →
+          </Link>
+        </div>
+      )}
+
+      {/* Action menu */}
+      {showActionMenu && (
+        <div style={{ position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid #333', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', zIndex: 201, minWidth: 180 }}>
+          <button onClick={() => { setShowActionMenu(false); if (requireAuth('log')) { setLogPreSelected(null); setShowLog(true) } }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', borderBottom: '1px solid #222', color: 'white', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
+            🍽️ Log a meal
+          </button>
+          <button onClick={() => { setShowActionMenu(false); if (requireAuth('add-vendor')) setShowAddVendor(true) }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', color: 'white', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
+            📍 Add new vendor
+          </button>
+        </div>
+      )}
+
+      {/* Streak reminder */}
+      {streakReminder && (
+        <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
+          <div style={{ background: 'linear-gradient(135deg, #1a1a0a 0%, #1a1200 100%)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 20px rgba(245,158,11,0.2)' }}>
+            <span style={{ fontSize: 28, flexShrink: 0 }}>🔥</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#F59E0B' }}>{streakReminder.days}-day streak at risk!</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Log something today to keep it going</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button onClick={() => { setStreakReminder(null); setLogPreSelected(null); if (authUser) setShowLog(true) }} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#F59E0B', color: 'black', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Log now</button>
+              <button onClick={() => setStreakReminder(null)} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* City switcher bottom sheet */}
+      {showCitySwitcher && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowCitySwitcher(false)}>
+          <div style={{ width: '100%', background: '#111', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(env(safe-area-inset-bottom, 0px) + 32px)', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2, margin: '0 auto 20px' }} />
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6B7280', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Jump to city</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {CITIES.map(city => (
+                <button key={city.name} onClick={() => { setMapTarget({ lat: city.lat, lng: city.lng }); setActiveCity(city.name); setShowCitySwitcher(false) }} style={{ padding: '10px 18px', borderRadius: 24, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: 'none', background: activeCity === city.name ? '#F59E0B' : '#1a1a1a', color: activeCity === city.name ? 'black' : 'white', boxShadow: activeCity === city.name ? '0 2px 12px rgba(245,158,11,0.3)' : 'none' }}>
+                  {city.name}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { if (userLocation) setMapTarget(userLocation); setActiveCity(''); setShowCitySwitcher(false) }} style={{ marginTop: 16, width: '100%', padding: '14px 0', borderRadius: 14, border: '1px solid #333', background: 'transparent', color: '#9CA3AF', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              Use my location
+            </button>
+          </div>
+        </div>
+      )}
+
+      <BottomNav activePage="map" onPlusClick={() => { setSelectedVendor(null); setShowActionMenu(prev => !prev) }} />
+
+      {/* Sign-in prompt */}
+      {showSignInPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowSignInPrompt(false)}>
+          <div style={{ width: '100%', background: '#1a1a1a', borderRadius: '16px 16px 0 0', padding: '28px 24px 44px' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 20, color: 'white' }}>Sign in to continue</h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#9CA3AF' }}>{pendingAction === 'log' ? 'Sign in to log your meal and build your food diary.' : 'Sign in to pin new vendors and earn Discoverer credit.'}</p>
+            <button onClick={handleSignIn} disabled={signingIn} style={{ width: '100%', padding: '15px 14px', borderRadius: 12, border: 'none', background: signingIn ? '#e8e8e8' : 'white', color: '#111', fontSize: 15, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: signingIn ? 'none' : '0 2px 12px rgba(0,0,0,0.3)', transform: signingIn ? 'scale(0.98)' : 'scale(1)' }}>
+              {signingIn ? (
+                <><span style={{ width: 18, height: 18, border: '2px solid #999', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Signing in…</>
+              ) : (
+                <><svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Continue with Google</>
+              )}
+            </button>
+            <button onClick={() => setShowSignInPrompt(false)} style={{ width: '100%', padding: 13, marginTop: 10, borderRadius: 12, border: '1px solid #222', background: 'transparent', color: '#6B7280', fontSize: 14, cursor: 'pointer' }}>Not now</button>
+          </div>
+        </div>
+      )}
+
+      {showLog && (
+        <LogMeal vendors={vendors} preSelectedVendor={logPreSelected ?? undefined} userId={authUser?.id} onClose={() => { setShowLog(false); setLogPreSelected(null); fetchVendors() }} />
+      )}
+
+      {showCityPicker && <CityPicker onSelect={handleCitySelect} />}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}

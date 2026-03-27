@@ -64,7 +64,7 @@ export default function SavedPage() {
             Tap the bookmark icon on any vendor page to save it for later
           </p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/map')}
             style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: '#F59E0B', color: 'black', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}
           >
             Explore the map
@@ -125,7 +125,7 @@ export default function SavedPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <BottomNav activePage="profile" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="profile" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }

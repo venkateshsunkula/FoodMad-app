@@ -167,7 +167,7 @@ export default function NotificationsPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <BottomNav activePage="profile" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="profile" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }

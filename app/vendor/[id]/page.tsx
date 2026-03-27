@@ -280,7 +280,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/map?log=1')}
             style={{ flex: 1, padding: '13px 0', borderRadius: 12, border: 'none', background: '#F59E0B', color: 'black', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}
           >
             🍽️ Log a meal here
@@ -575,7 +575,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <BottomNav activePage="map" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="map" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }

@@ -342,7 +342,7 @@ export default function SearchPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <BottomNav activePage="search" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="search" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }

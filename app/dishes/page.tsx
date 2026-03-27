@@ -344,7 +344,7 @@ export default function DishesPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <BottomNav activePage="feed" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="home" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }

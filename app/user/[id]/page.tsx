@@ -255,7 +255,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <BottomNav activePage="feed" onPlusClick={() => router.push('/')} />
+      <BottomNav activePage="home" onPlusClick={() => router.push('/map')} />
     </div>
   )
 }
