@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodmad-v3'
+const CACHE_NAME = 'foodmad-v4'
 
 // Pages to cache immediately on install
 const PRECACHE_URLS = ['/', '/feed', '/profile']
