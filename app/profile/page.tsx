@@ -6,12 +6,13 @@ import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/compress'
 import BottomNav from '../components/bottom-nav'
 
-type Tab = 'diary' | 'collections' | 'following' | 'reviews'
+type Tab = 'diary' | 'collections' | 'following' | 'followers' | 'reviews'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'diary', label: 'Food Diary' },
   { key: 'collections', label: 'Collections' },
   { key: 'following', label: 'Following' },
+  { key: 'followers', label: 'Followers' },
   { key: 'reviews', label: 'Reviews' },
 ]
 
@@ -39,6 +40,9 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<Tab>('diary')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [customAvatar, setCustomAvatar] = useState<string | null>(null)
+  const [following, setFollowing] = useState<any[]>([])
+  const [followers, setFollowers] = useState<any[]>([])
+  const [unfollowingId, setUnfollowingId] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { init() }, [])
@@ -48,21 +52,35 @@ export default function ProfilePage() {
     if (!user) { router.replace('/'); return }
     setAuthUser(user)
 
-    const [{ data: db }, { data: logs }, { count }] = await Promise.all([
+    const [{ data: db }, { data: logs }, { count }, { data: followingData }, { data: followersData }] = await Promise.all([
       supabase.from('users').select('*').eq('id', user.id).single(),
       supabase.from('meal_logs').select('*, vendors(name)').eq('user_id', user.id).order('logged_at', { ascending: false }),
       supabase.from('vendors').select('*', { count: 'exact', head: true }).eq('added_by', user.id),
+      // People this user follows — join to get their profile
+      supabase.from('follows').select('following_id, users!following_id(id, name, avatar_url, city)').eq('follower_id', user.id),
+      // People who follow this user
+      supabase.from('follows').select('follower_id, users!follower_id(id, name, avatar_url, city)').eq('following_id', user.id),
     ])
 
     setDbUser(db)
     setMealLogs(logs ?? [])
     setVendorCount(count ?? 0)
+    setFollowing(followingData?.map(f => f.users).filter(Boolean) ?? [])
+    setFollowers(followersData?.map(f => f.users).filter(Boolean) ?? [])
     setLoading(false)
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.replace('/')
+  }
+
+  async function handleUnfollow(targetId: string) {
+    if (!authUser || unfollowingId) return
+    setUnfollowingId(targetId)
+    await supabase.from('follows').delete().eq('follower_id', authUser.id).eq('following_id', targetId)
+    setFollowing(prev => prev.filter((u: any) => u.id !== targetId))
+    setUnfollowingId(null)
   }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -220,22 +238,25 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <nav style={{ display: 'flex', borderBottom: '1px solid #1a1a1a', marginBottom: 20, overflowX: 'auto' }}>
-          {TABS.map(tab => (
+          {TABS.map(tab => {
+            const count = tab.key === 'following' ? following.length : tab.key === 'followers' ? followers.length : null
+            return (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: '10px 16px 12px', flexShrink: 0,
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+                padding: '10px 14px 12px', flexShrink: 0,
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
                 color: activeTab === tab.key ? '#F59E0B' : '#6B7280',
                 borderBottom: activeTab === tab.key ? '2px solid #F59E0B' : '2px solid transparent',
                 marginBottom: -1, transition: 'color 0.15s',
               }}
             >
-              {tab.label}
+              {tab.label}{count !== null && count > 0 ? ` ${count}` : ''}
             </button>
-          ))}
+          )})}
+
         </nav>
 
         {/* Tab: Food Diary */}
@@ -300,29 +321,63 @@ export default function ProfilePage() {
         {/* Tab: Following */}
         {activeTab === 'following' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { name: 'Priya K.', city: 'Mumbai', meals: 42 },
-              { name: 'Arjun R.', city: 'Bangalore', meals: 87 },
-              { name: 'Sneha M.', city: 'Hyderabad', meals: 31 },
-              { name: 'Karan V.', city: 'Delhi', meals: 104 },
-              { name: 'Ananya S.', city: 'Chennai', meals: 56 },
-            ].map(user => (
-              <div key={user.name} style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#252525', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#F59E0B', flexShrink: 0 }}>
-                  {user.name[0]}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: 'white' }}>{user.name}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>{user.city} · {user.meals} meals</p>
-                </div>
-                <button style={{ background: 'transparent', border: '1px solid #F59E0B', color: '#F59E0B', fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 20, cursor: 'pointer' }}>
-                  Following
-                </button>
+            {following.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', color: '#6B7280' }}>
+                <p style={{ fontSize: 32, marginBottom: 10 }}>👥</p>
+                <p style={{ fontSize: 15, fontWeight: 600, color: '#9CA3AF', marginBottom: 6 }}>Not following anyone yet</p>
+                <p style={{ fontSize: 13 }}>Find people on vendor pages or through the feed</p>
               </div>
-            ))}
-            <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
-              <p style={{ color: '#6B7280', fontSize: 13 }}>Social follows — find real users on the map</p>
-            </div>
+            ) : (
+              following.map((u: any) => (
+                <div key={u.id} style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    onClick={() => router.push(`/user/${u.id}`)}
+                    style={{ width: 44, height: 44, borderRadius: '50%', background: '#333', flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' }}
+                  >
+                    <span style={{ fontSize: 18, fontWeight: 700, color: '#F59E0B', position: 'absolute' }}>{(u.name || '?')[0].toUpperCase()}</span>
+                    {u.avatar_url && <img src={u.avatar_url} alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => router.push(`/user/${u.id}`)}>
+                    <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: 'white' }}>{u.name}</p>
+                    {u.city && <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>📍 {u.city}</p>}
+                  </div>
+                  <button
+                    onClick={() => handleUnfollow(u.id)}
+                    disabled={unfollowingId === u.id}
+                    style={{ background: 'transparent', border: '1px solid #333', color: '#6B7280', fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 20, cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {unfollowingId === u.id ? '…' : 'Following'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Tab: Followers */}
+        {activeTab === 'followers' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {followers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', color: '#6B7280' }}>
+                <p style={{ fontSize: 32, marginBottom: 10 }}>👤</p>
+                <p style={{ fontSize: 15, fontWeight: 600, color: '#9CA3AF', marginBottom: 6 }}>No followers yet</p>
+                <p style={{ fontSize: 13 }}>Share your profile link to get followers</p>
+              </div>
+            ) : (
+              followers.map((u: any) => (
+                <div key={u.id} onClick={() => router.push(`/user/${u.id}`)} style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#333', flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: '#F59E0B', position: 'absolute' }}>{(u.name || '?')[0].toUpperCase()}</span>
+                    {u.avatar_url && <img src={u.avatar_url} alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: 'white' }}>{u.name}</p>
+                    {u.city && <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>📍 {u.city}</p>}
+                  </div>
+                  <span style={{ color: '#333', fontSize: 18, flexShrink: 0 }}>›</span>
+                </div>
+              ))
+            )}
           </div>
         )}
 
