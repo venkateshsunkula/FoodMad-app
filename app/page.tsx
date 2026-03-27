@@ -1,6 +1,6 @@
 'use client'
 
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps'
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -10,6 +10,30 @@ import AddVendor from './add-vendor'
 import CityPicker from './city-picker'
 import BottomNav from './components/bottom-nav'
 import Onboarding from './components/onboarding'
+
+const CITIES = [
+  { name: 'Hyderabad', lat: 17.385,  lng: 78.4867 },
+  { name: 'Bangalore', lat: 12.9716, lng: 77.5946 },
+  { name: 'Delhi',     lat: 28.6139, lng: 77.2090 },
+  { name: 'Mumbai',    lat: 19.0760, lng: 72.8777 },
+  { name: 'Chennai',   lat: 13.0827, lng: 80.2707 },
+  { name: 'Pune',      lat: 18.5204, lng: 73.8567 },
+  { name: 'Kolkata',   lat: 22.5726, lng: 88.3639 },
+  { name: 'Ahmedabad', lat: 23.0225, lng: 72.5714 },
+  { name: 'Guntur',    lat: 16.3067, lng: 80.4365 },
+]
+
+// Inner component — must be inside APIProvider to use useMap
+function CityPanner({ target }: { target: { lat: number; lng: number } | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (map && target) {
+      map.panTo(target)
+      map.setZoom(13)
+    }
+  }, [map, target])
+  return null
+}
 
 export default function Home() {
   const router = useRouter()
@@ -32,6 +56,9 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [unreadCount, setUnreadCount] = useState(0)
+  const [showCitySwitcher, setShowCitySwitcher] = useState(false)
+  const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null)
+  const [activeCity, setActiveCity] = useState<string>('')
 
   // Show onboarding on first visit
   useEffect(() => {
@@ -200,6 +227,28 @@ export default function Home() {
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
 
+      {/* City switcher button — top left */}
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', left: 16, zIndex: 100 }}>
+        <button
+          onClick={() => setShowCitySwitcher(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '9px 14px', borderRadius: 24,
+            background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'white', fontSize: 13, fontWeight: 700,
+            cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          {activeCity || 'My Location'}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
       {/* Filter chips */}
       <div style={{
         position: 'fixed',
@@ -240,6 +289,7 @@ export default function Home() {
           style={{ width: '100%', height: '100%' }}
           onClick={() => { setSelectedVendor(null); setShowActionMenu(false) }}
         >
+          <CityPanner target={mapTarget} />
           {filteredVendors.map((vendor) => (
             <AdvancedMarker
               key={vendor.id}
@@ -475,6 +525,60 @@ export default function Home() {
           >
             📍 Add new vendor
           </button>
+        </div>
+      )}
+
+      {/* City switcher bottom sheet */}
+      {showCitySwitcher && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowCitySwitcher(false)}
+        >
+          <div
+            style={{ width: '100%', background: '#111', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(env(safe-area-inset-bottom, 0px) + 32px)', boxSizing: 'border-box' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2, margin: '0 auto 20px' }} />
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6B7280', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Jump to city</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {CITIES.map(city => (
+                <button
+                  key={city.name}
+                  onClick={() => {
+                    setMapTarget({ lat: city.lat, lng: city.lng })
+                    setActiveCity(city.name)
+                    setShowCitySwitcher(false)
+                  }}
+                  style={{
+                    padding: '10px 18px', borderRadius: 24, fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer', border: 'none',
+                    background: activeCity === city.name ? '#F59E0B' : '#1a1a1a',
+                    color: activeCity === city.name ? 'black' : 'white',
+                    boxShadow: activeCity === city.name ? '0 2px 12px rgba(245,158,11,0.3)' : 'none',
+                  }}
+                >
+                  {city.name}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                if (userLocation) setMapTarget(userLocation)
+                setActiveCity('')
+                setShowCitySwitcher(false)
+              }}
+              style={{
+                marginTop: 16, width: '100%', padding: '14px 0',
+                borderRadius: 14, border: '1px solid #333',
+                background: 'transparent', color: '#9CA3AF',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              Use my location
+            </button>
+          </div>
         </div>
       )}
 
