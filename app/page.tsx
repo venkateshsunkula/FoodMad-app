@@ -27,6 +27,7 @@ export default function Home() {
   const [showCityPicker, setShowCityPicker] = useState(false)
   const [pendingAction, setPendingAction] = useState<'log' | 'add-vendor' | null>(null)
   const [signingIn, setSigningIn] = useState(false)
+  const [pwaSignInOpen, setPwaSignInOpen] = useState(false)
 
   // GPS
   useEffect(() => {
@@ -45,16 +46,33 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthUser(session?.user ?? null)
       if (session?.user) loadDbUser(session.user)
+      else checkCookieSession() // iOS PWA: check if Safari completed OAuth
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null)
       if (session?.user) loadDbUser(session.user)
-      else { setDbUser(null) }
+      else setDbUser(null)
     })
 
-    return () => subscription.unsubscribe()
+    // When user returns to PWA after signing in via Safari, pick up the session
+    const onFocus = () => { if (!authUser) checkCookieSession() }
+    document.addEventListener('visibilitychange', onFocus)
+
+    return () => { subscription.unsubscribe(); document.removeEventListener('visibilitychange', onFocus) }
   }, [])
+
+  async function checkCookieSession() {
+    const match = document.cookie.match(/foodmad_rt=([^;]+)/)
+    if (!match) return
+    const { data } = await supabase.auth.refreshSession({ refresh_token: decodeURIComponent(match[1]) })
+    if (data.session) {
+      setAuthUser(data.session.user)
+      loadDbUser(data.session.user)
+      // Clear the cookie — session is now in localStorage
+      document.cookie = 'foodmad_rt=; path=/; max-age=0'
+    }
+  }
 
   async function loadDbUser(authUser: any) {
     const { data } = await supabase
@@ -86,10 +104,24 @@ export default function Home() {
 
   async function handleSignIn() {
     setSigningIn(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+
+    if (isStandalone) {
+      // iOS PWA: Google blocks OAuth inside WKWebView — get the URL and open in Safari
+      const { data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback?pwa=1`, skipBrowserRedirect: true },
+      })
+      if (data?.url) window.open(data.url, '_blank')
+      setSigningIn(false)
+      setPwaSignInOpen(true) // show "return to app" hint
+    } else {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+    }
   }
 
   // Call before any gated action. Returns true if signed in.
@@ -155,20 +187,21 @@ export default function Home() {
         )}
       </APIProvider>
 
-      {/* Sign-in / avatar button — top right */}
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 100 }}>
+      {/* Sign-in / avatar button — top right with safe area */}
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, zIndex: 100 }}>
         {authUser ? (
           <button
             onClick={() => router.push('/profile')}
             title="Profile"
             style={{
-              width: 38, height: 38, borderRadius: '50%',
+              width: 44, height: 44, borderRadius: '50%',
               border: '2px solid #F59E0B', padding: 0,
               overflow: 'hidden', cursor: 'pointer', background: '#333',
               position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
             }}
           >
-            <span style={{ color: 'white', fontSize: 16, position: 'absolute' }}>
+            <span style={{ color: 'white', fontSize: 18, position: 'absolute' }}>
               {(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}
             </span>
             {authUser.user_metadata?.avatar_url && (
@@ -185,27 +218,47 @@ export default function Home() {
             onClick={handleSignIn}
             disabled={signingIn}
             style={{
-              padding: '8px 16px', borderRadius: 20,
+              padding: '10px 18px', borderRadius: 24,
               border: '1px solid #F59E0B',
-              background: signingIn ? '#F59E0B' : 'rgba(245,158,11,0.1)',
+              background: signingIn ? '#F59E0B' : 'rgba(10,10,10,0.85)',
               color: signingIn ? '#000' : '#F59E0B',
-              fontSize: 13, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-              transition: 'all 0.2s',
-              boxShadow: signingIn ? 'none' : '0 0 12px rgba(245,158,11,0.2)',
+              fontSize: 14, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 7,
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 2px 16px rgba(0,0,0,0.5)',
             }}
           >
             {signingIn ? (
               <>
-                <span style={{ width: 12, height: 12, border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                <span style={{ width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
                 Signing in…
               </>
             ) : (
-              'Sign in'
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" fill="#F59E0B"/>
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                Sign in
+              </>
             )}
           </button>
         )}
       </div>
+
+      {/* PWA sign-in hint — shown after opening Safari for OAuth */}
+      {pwaSignInOpen && !authUser && (
+        <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #F59E0B', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 24, flexShrink: 0 }}>↩</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: 'white' }}>Finish sign-in in Safari</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Then come back here — you'll be signed in automatically</p>
+            </div>
+            <button onClick={() => { setPwaSignInOpen(false); checkCookieSession() }} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Vendor popup */}
       {selectedVendor && (
