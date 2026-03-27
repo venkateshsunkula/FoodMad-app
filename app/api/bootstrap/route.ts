@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 
+// Use service role key if available (bypasses RLS), otherwise fall back to anon key
+// RLS is disabled on vendors so anon key works too
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 const PLACES_BASE = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
@@ -89,11 +91,12 @@ export async function GET(req: NextRequest) {
 
     const vendor = {
       name: place.name,
+      type: 'restaurant',
       lat: place.geometry.location.lat,
       lng: place.geometry.location.lng,
-      address: place.vicinity ?? null,
+      neighborhood: place.vicinity ?? null,
       city,
-      tags: guessTags(place.name),
+      cuisine_tags: guessTags(place.name),
       source: 'google',
       added_by: null,
     }
