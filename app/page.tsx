@@ -28,6 +28,7 @@ export default function Home() {
   const [pendingAction, setPendingAction] = useState<'log' | 'add-vendor' | null>(null)
   const [signingIn, setSigningIn] = useState(false)
   const [pwaSignInOpen, setPwaSignInOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string>('all')
 
   // GPS
   useEffect(() => {
@@ -148,8 +149,62 @@ export default function Home() {
 
   const mapCenter = userLocation ?? { lat: 17.385, lng: 78.4867 }
 
+  const FILTERS = [
+    { key: 'all', label: '✦ All' },
+    { key: 'manual', label: '📍 Street Vendors' },
+    { key: 'google', label: '🍴 Restaurants' },
+    { key: 'Chaat', label: 'Chaat' },
+    { key: 'Momos', label: 'Momos' },
+    { key: 'Biryani', label: 'Biryani' },
+    { key: 'South Indian', label: 'South Indian' },
+    { key: 'North Indian', label: 'North Indian' },
+    { key: 'Chinese', label: 'Chinese' },
+    { key: 'Tea/Coffee', label: 'Tea/Coffee' },
+    { key: 'Dosa', label: 'Dosa' },
+    { key: 'Sweets', label: 'Sweets' },
+    { key: 'Rolls/Wraps', label: 'Rolls/Wraps' },
+  ]
+
+  const filteredVendors = vendors.filter(v => {
+    if (!v.lat || !v.lng) return false
+    if (activeFilter === 'all') return true
+    if (activeFilter === 'manual' || activeFilter === 'google') return v.source === activeFilter
+    return v.cuisine_tags?.some((t: string) => t.toLowerCase() === activeFilter.toLowerCase())
+  })
+
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+
+      {/* Filter chips */}
+      <div style={{
+        position: 'fixed',
+        top: 'calc(env(safe-area-inset-top, 0px) + 68px)',
+        left: 0, right: 0,
+        zIndex: 100,
+        display: 'flex', gap: 8, overflowX: 'auto',
+        padding: '0 16px',
+        scrollbarWidth: 'none',
+      }}>
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setActiveFilter(f.key)}
+            style={{
+              flexShrink: 0,
+              padding: '7px 14px', borderRadius: 20,
+              border: `1px solid ${activeFilter === f.key ? '#F59E0B' : 'rgba(255,255,255,0.15)'}`,
+              background: activeFilter === f.key ? '#F59E0B' : 'rgba(10,10,10,0.8)',
+              color: activeFilter === f.key ? 'black' : 'white',
+              fontSize: 13, fontWeight: activeFilter === f.key ? 700 : 500,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {/* Map — inside APIProvider */}
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -160,7 +215,7 @@ export default function Home() {
           style={{ width: '100%', height: '100%' }}
           onClick={() => { setSelectedVendor(null); setShowActionMenu(false) }}
         >
-          {vendors.filter(v => v.lat && v.lng).map((vendor) => (
+          {filteredVendors.map((vendor) => (
             <AdvancedMarker
               key={vendor.id}
               position={{ lat: vendor.lat, lng: vendor.lng }}
@@ -256,6 +311,15 @@ export default function Home() {
               <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Then come back here — you'll be signed in automatically</p>
             </div>
             <button onClick={() => { setPwaSignInOpen(false); checkCookieSession() }} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter result count */}
+      {activeFilter !== 'all' && (
+        <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 116px)', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+          <div style={{ background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(10px)', border: '1px solid #333', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+            {filteredVendors.length === 0 ? 'No matches' : `${filteredVendors.length} on map`}
           </div>
         </div>
       )}
