@@ -112,13 +112,18 @@ export default function FeedPage() {
                 width: 36, height: 36, borderRadius: '50%',
                 background: '#333', overflow: 'hidden', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
               }}>
-                {log.users?.avatar_url ? (
-                  <img src={log.users.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                ) : (
-                  <span style={{ color: 'white', fontSize: 14 }}>
-                    {(log.users?.name || '?')[0].toUpperCase()}
-                  </span>
+                <span style={{ color: 'white', fontSize: 14, position: 'absolute' }}>
+                  {(log.users?.name || '?')[0].toUpperCase()}
+                </span>
+                {log.users?.avatar_url && (
+                  <img
+                    src={log.users.avatar_url}
+                    alt=""
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+                  />
                 )}
               </div>
               <div>

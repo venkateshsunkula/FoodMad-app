@@ -123,11 +123,16 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
           border: '2px solid #F59E0B',
           overflow: 'hidden', background: '#333',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative',
         }}>
-          {profileUser.avatar_url ? (
-            <img src={profileUser.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: 32 }}>{(profileUser.name || '?')[0].toUpperCase()}</span>
+          <span style={{ fontSize: 32, position: 'absolute' }}>{(profileUser.name || '?')[0].toUpperCase()}</span>
+          {profileUser.avatar_url && (
+            <img
+              src={profileUser.avatar_url}
+              alt=""
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+            />
           )}
         </div>
         <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700 }}>{profileUser.name}</h2>

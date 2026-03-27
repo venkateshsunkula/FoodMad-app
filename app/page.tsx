@@ -163,14 +163,19 @@ export default function Home() {
               width: 38, height: 38, borderRadius: '50%',
               border: '2px solid #F59E0B', padding: 0,
               overflow: 'hidden', cursor: 'pointer', background: '#333',
+              position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            {authUser.user_metadata?.avatar_url ? (
-              <img src={authUser.user_metadata.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ color: 'white', fontSize: 16 }}>
-                {(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}
-              </span>
+            <span style={{ color: 'white', fontSize: 16, position: 'absolute' }}>
+              {(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}
+            </span>
+            {authUser.user_metadata?.avatar_url && (
+              <img
+                src={authUser.user_metadata.avatar_url}
+                alt=""
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+              />
             )}
           </button>
         ) : (
