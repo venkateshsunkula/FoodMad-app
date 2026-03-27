@@ -1,12 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 
-// Use service role key if available (bypasses RLS), otherwise fall back to anon key
-// RLS is disabled on vendors so anon key works too
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+export const dynamic = 'force-dynamic'
 
 const PLACES_BASE = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
 
@@ -57,6 +52,11 @@ function sleep(ms: number) {
 }
 
 export async function GET(req: NextRequest) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
   const { searchParams } = req.nextUrl
   const lat = searchParams.get('lat') ?? '17.385'
   const lng = searchParams.get('lng') ?? '78.4867'
