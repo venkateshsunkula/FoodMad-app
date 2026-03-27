@@ -193,17 +193,34 @@ export default function ProfilePage() {
           onClick={handleSignOut}
           disabled={signingOut}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: signingOut ? '#1a1a1a' : 'transparent',
-            border: '1px solid #333', color: signingOut ? '#444' : '#6B7280',
-            fontSize: 12, fontWeight: 700, padding: '7px 14px', borderRadius: 20,
-            cursor: signingOut ? 'default' : 'pointer', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '9px 16px', borderRadius: 24,
+            border: '1px solid #333',
+            background: signingOut ? '#1a1a1a' : 'rgba(255,255,255,0.05)',
+            color: signingOut ? '#444' : '#9CA3AF',
+            fontSize: 13, fontWeight: 700,
+            cursor: signingOut ? 'default' : 'pointer',
+            backdropFilter: 'blur(12px)',
+            transition: 'all 0.2s',
           }}
         >
-          {signingOut
-            ? <><span style={{ width: 10, height: 10, border: '2px solid #444', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> Signing out…</>
-            : 'Sign out'}
+          {signingOut ? (
+            <>
+              <span style={{ width: 12, height: 12, border: '2px solid #555', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+              Signing out…
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Sign out
+            </>
+          )}
         </button>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </header>
 
       <main style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px' }}>

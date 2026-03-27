@@ -119,7 +119,11 @@ export default function Home() {
       // iOS PWA: Google blocks OAuth inside WKWebView — get the URL and open in Safari
       const { data } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback?pwa=1`, skipBrowserRedirect: true },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?pwa=1`,
+          skipBrowserRedirect: true,
+          queryParams: { prompt: 'select_account' },
+        },
       })
       if (data?.url) window.open(data.url, '_blank')
       setSigningIn(false)
@@ -127,7 +131,10 @@ export default function Home() {
     } else {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: 'select_account' },
+        },
       })
     }
   }
