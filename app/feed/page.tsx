@@ -91,7 +91,7 @@ export default function FeedPage() {
     for (const log of recentLogs ?? []) {
       const key = log.dish_name?.toLowerCase()
       if (!key) continue
-      if (!dishMap[key]) dishMap[key] = { count: 0, totalRating: 0, photo: null, vendorName: log.vendors?.name ?? '', vendorId: log.vendor_id }
+      if (!dishMap[key]) dishMap[key] = { count: 0, totalRating: 0, photo: null, vendorName: (log.vendors as any)?.name ?? '', vendorId: log.vendor_id }
       dishMap[key].count++
       dishMap[key].totalRating += log.rating ?? 0
       if (!dishMap[key].photo && log.photo_url) dishMap[key].photo = log.photo_url

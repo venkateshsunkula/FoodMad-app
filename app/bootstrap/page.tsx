@@ -285,10 +285,10 @@ export default function BootstrapPage() {
 
       {/* Manual inputs */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
-        {[['Latitude', lat, setLat], ['Longitude', lng, setLng], ['Radius (m)', radius, setRadius]].map(([label, val, setter]) => (
-          <div key={label as string}>
+        {([['Latitude', lat, setLat], ['Longitude', lng, setLng], ['Radius (m)', radius, setRadius]] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
+          <div key={label}>
             <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 4 }}>{label}</label>
-            <input value={val as string} onChange={e => (setter as any)(e.target.value)}
+            <input value={val} onChange={e => setter(e.target.value)}
               style={{ width: '100%', padding: 10, background: '#1a1a1a', border: '1px solid #333', borderRadius: 8, color: 'white', fontSize: 13, boxSizing: 'border-box' }} />
           </div>
         ))}
