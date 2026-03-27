@@ -9,6 +9,7 @@ import LogMeal from './log'
 import AddVendor from './add-vendor'
 import CityPicker from './city-picker'
 import BottomNav from './components/bottom-nav'
+import Onboarding from './components/onboarding'
 
 export default function Home() {
   const router = useRouter()
@@ -28,7 +29,13 @@ export default function Home() {
   const [pendingAction, setPendingAction] = useState<'log' | 'add-vendor' | null>(null)
   const [signingIn, setSigningIn] = useState(false)
   const [pwaSignInOpen, setPwaSignInOpen] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+
+  // Show onboarding on first visit
+  useEffect(() => {
+    if (!localStorage.getItem('foodmad_onboarded')) setShowOnboarding(true)
+  }, [])
 
   // GPS
   useEffect(() => {
@@ -505,6 +512,8 @@ export default function Home() {
       {showCityPicker && (
         <CityPicker onSelect={handleCitySelect} />
       )}
+
+      {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
