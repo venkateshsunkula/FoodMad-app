@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/compress'
 import BottomNav from '../components/bottom-nav'
+import ShareCard from '../components/share-card'
 
 type Tab = 'diary' | 'collections' | 'following' | 'followers' | 'reviews'
 
@@ -50,6 +51,7 @@ export default function ProfilePage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [shareLog, setShareLog] = useState<any>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const ALL_TAGS = ['🌶️ Spicy', '🍋 Tangy', '🥨 Crispy', '🧈 Creamy', '🌿 Fresh', '🔥 Hot', '🍬 Sweet', '🥩 Non-veg', '🥦 Veg', '⭐ Must-try', '🌙 Late night', '🌤️ Seasonal']
@@ -658,13 +660,22 @@ export default function ProfilePage() {
 
                 {/* Actions */}
                 {!confirmDelete ? (
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={() => openEdit(selectedLog)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                      ✏️ Edit
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <button
+                      onClick={() => setShareLog(selectedLog)}
+                      style={{ width: '100%', padding: '14px 0', borderRadius: 12, border: 'none', background: '#F59E0B', color: 'black', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 4px 14px rgba(245,158,11,0.3)' }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                      Share this meal
                     </button>
-                    <button onClick={() => setConfirmDelete(true)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: '#EF4444', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                      🗑️ Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => openEdit(selectedLog)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        ✏️ Edit
+                      </button>
+                      <button onClick={() => setConfirmDelete(true)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: '#EF4444', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div style={{ background: '#1a1a1a', borderRadius: 14, padding: '16px', border: '1px solid #333' }}>
@@ -749,6 +760,14 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+      )}
+
+      {shareLog && (
+        <ShareCard
+          log={shareLog}
+          userName={displayName}
+          onClose={() => setShareLog(null)}
+        />
       )}
 
       <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
