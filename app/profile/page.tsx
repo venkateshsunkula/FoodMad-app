@@ -320,9 +320,14 @@ export default function ProfilePage() {
             {dbUser?.city && <span>📍 {dbUser.city}</span>}
             {dbUser?.created_at && <span>🗓 Joined {new Date(dbUser.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>}
           </div>
-          <Link href="/leaderboard" style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 20, background: '#1a1a1a', border: '1px solid #252525', textDecoration: 'none', color: '#9CA3AF', fontSize: 12, fontWeight: 700 }}>
-            🏆 Leaderboard
-          </Link>
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link href="/leaderboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 20, background: '#1a1a1a', border: '1px solid #252525', textDecoration: 'none', color: '#9CA3AF', fontSize: 12, fontWeight: 700 }}>
+              🏆 Leaderboard
+            </Link>
+            <Link href="/saved" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 20, background: '#1a1a1a', border: '1px solid #252525', textDecoration: 'none', color: '#9CA3AF', fontSize: 12, fontWeight: 700 }}>
+              🔖 Saved Spots
+            </Link>
+          </div>
         </section>
 
         {/* Streak card */}

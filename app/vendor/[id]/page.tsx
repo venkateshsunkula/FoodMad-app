@@ -27,17 +27,115 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true)
   const [selectedLog, setSelectedLog] = useState<any>(null)
   const [copied, setCopied] = useState(false)
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [claiming, setClaiming] = useState(false)
+  const [claimDone, setClaimDone] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [savingBookmark, setSavingBookmark] = useState(false)
+  const [editHours, setEditHours] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   useEffect(() => { if (id) init() }, [id])
 
   async function init() {
-    const [{ data: v }, { data: logs }] = await Promise.all([
-      supabase.from('vendors').select('*, users!added_by(id, name)').eq('id', id).single(),
-      supabase.from('meal_logs').select('*, users!user_id(id, name, avatar_url)').eq('vendor_id', id).order('logged_at', { ascending: false }),
+    const { data: { user } } = await supabase.auth.getUser()
+    setAuthUserId(user?.id ?? null)
+
+    const [{ data: v }, { data: logs }, { data: savedRow }] = await Promise.all([
+      supabase
+        .from('vendors')
+        .select('*, users!added_by(id, name), claimer:users!claimed_by(id, name)')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('meal_logs')
+        .select('*, users!user_id(id, name, avatar_url)')
+        .eq('vendor_id', id)
+        .order('logged_at', { ascending: false }),
+      user ? supabase.from('saved_vendors').select('vendor_id').eq('user_id', user.id).eq('vendor_id', id).maybeSingle() : Promise.resolve({ data: null }),
     ])
     setVendor(v)
+    setEditHours(v?.hours ?? '')
+    setEditPhone(v?.phone ?? '')
     setMealLogs(logs ?? [])
+    setSaved(!!savedRow)
     setLoading(false)
+  }
+
+  async function toggleSave() {
+    if (!authUserId) return
+    setSavingBookmark(true)
+    if (saved) {
+      await supabase.from('saved_vendors').delete().eq('user_id', authUserId).eq('vendor_id', id)
+      setSaved(false)
+    } else {
+      await supabase.from('saved_vendors').insert({ user_id: authUserId, vendor_id: id })
+      setSaved(true)
+    }
+    setSavingBookmark(false)
+  }
+
+  async function handleClaim() {
+    if (!authUserId || !vendor) return
+    setClaiming(true)
+    const { error } = await supabase
+      .from('vendors')
+      .update({ claimed_by: authUserId })
+      .eq('id', id)
+    if (!error) {
+      setVendor((v: any) => ({ ...v, claimed_by: authUserId }))
+      setClaimDone(true)
+    }
+    setClaiming(false)
+  }
+
+  async function handleSaveEdits() {
+    setSaving(true)
+    const { error } = await supabase
+      .from('vendors')
+      .update({ hours: editHours || null, phone: editPhone || null })
+      .eq('id', id)
+    if (!error) {
+      setVendor((v: any) => ({ ...v, hours: editHours || null, phone: editPhone || null }))
+      setEditing(false)
+    }
+    setSaving(false)
+  }
+
+  async function handleCoverPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !authUserId) return
+    setPhotoUploading(true)
+    try {
+      // Compress: draw to canvas at max 1200px wide
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image()
+        image.onload = () => resolve(image)
+        image.onerror = reject
+        image.src = URL.createObjectURL(file)
+      })
+      const MAX = 1200
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.85))
+
+      const path = `vendor-covers/${id}-${Date.now()}.jpg`
+      const { error: uploadError } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
+      await supabase.from('vendors').update({ photo_url: publicUrl }).eq('id', id)
+      setVendor((v: any) => ({ ...v, photo_url: publicUrl }))
+    } catch {
+      alert('Photo upload failed. Try again.')
+    }
+    setPhotoUploading(false)
   }
 
   function handleShare() {
@@ -86,6 +184,12 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
   const isManual = vendor.source === 'manual'
   const uniqueDishes = Object.keys(dishCounts).length
 
+  const isClaimed = !!vendor.claimed_by
+  const isVerified = !!vendor.is_verified
+  const isOwner = authUserId && vendor.claimed_by === authUserId
+  const canClaim = authUserId && !isClaimed && !claimDone
+  const claimerName = (vendor.claimer as any)?.name ?? null
+
   return (
     <div style={{ background: '#0a0a0a', minHeight: '100vh', color: 'white', paddingBottom: 100 }}>
 
@@ -103,14 +207,25 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
           <button onClick={() => router.back()} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             ←
           </button>
-          <button onClick={handleShare} style={{ padding: '8px 14px', borderRadius: 20, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            {copied ? '✓ Copied' : 'Share'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {authUserId && (
+              <button
+                onClick={toggleSave}
+                disabled={savingBookmark}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: saved ? 'rgba(245,158,11,0.3)' : 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: `1px solid ${saved ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.1)'}`, color: saved ? '#F59E0B' : 'white', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {saved ? '★' : '☆'}
+              </button>
+            )}
+            <button onClick={handleShare} style={{ padding: '8px 14px', borderRadius: 20, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {copied ? '✓ Copied' : 'Share'}
+            </button>
+          </div>
         </div>
 
         {/* Vendor name overlay */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{
               background: isManual ? '#F59E0B' : '#4B5563',
               color: isManual ? 'black' : 'white',
@@ -121,6 +236,17 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
             {avgRating && (
               <span style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                 ★ {avgRating}
+              </span>
+            )}
+            {(isClaimed || isVerified) && (
+              <span style={{
+                background: isVerified ? 'linear-gradient(135deg, #F59E0B, #D97706)' : 'rgba(245,158,11,0.15)',
+                border: isVerified ? 'none' : '1px solid rgba(245,158,11,0.4)',
+                color: isVerified ? 'black' : '#F59E0B',
+                padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                {isVerified ? '✓ Verified' : '✓ Claimed'}
               </span>
             )}
           </div>
@@ -171,11 +297,104 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
           )}
         </div>
 
+        {/* Claim this spot */}
+        {canClaim && (
+          <button
+            onClick={handleClaim}
+            disabled={claiming}
+            style={{
+              width: '100%', padding: '13px 0', borderRadius: 12, marginBottom: 16,
+              border: '1px solid rgba(245,158,11,0.35)',
+              background: 'rgba(245,158,11,0.07)',
+              color: claiming ? '#6B7280' : '#F59E0B',
+              fontSize: 14, fontWeight: 700, cursor: claiming ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {claiming ? (
+              <><span style={{ width: 14, height: 14, border: '2px solid #6B7280', borderTopColor: '#F59E0B', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> Claiming…</>
+            ) : (
+              '🏷️ Is this your place? Claim it'
+            )}
+          </button>
+        )}
+
+        {claimDone && (
+          <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#F59E0B', fontWeight: 700 }}>✓ You've claimed this spot! Verification coming soon.</p>
+          </div>
+        )}
+
+        {/* Owner edit panel */}
+        {isOwner && !claimDone && (
+          <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editing ? 14 : 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#F59E0B' }}>🏷️ You own this spot</p>
+              <button
+                onClick={() => setEditing(e => !e)}
+                style={{ background: 'none', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {editing ? 'Cancel' : 'Edit details'}
+              </button>
+            </div>
+            {editing && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Cover photo */}
+                <div>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Cover Photo</p>
+                  <label style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '12px', borderRadius: 10, border: '1px dashed #333',
+                    background: '#111', color: photoUploading ? '#6B7280' : '#9CA3AF',
+                    fontSize: 13, fontWeight: 600, cursor: photoUploading ? 'default' : 'pointer',
+                  }}>
+                    {photoUploading ? (
+                      <><span style={{ width: 14, height: 14, border: '2px solid #444', borderTopColor: '#F59E0B', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> Uploading…</>
+                    ) : (
+                      <>📷 {vendor.photo_url ? 'Change cover photo' : 'Upload cover photo'}</>
+                    )}
+                    <input type="file" accept="image/*" capture="environment" onChange={handleCoverPhoto} style={{ display: 'none' }} disabled={photoUploading} />
+                  </label>
+                </div>
+
+                <div>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Hours</p>
+                  <input
+                    value={editHours}
+                    onChange={e => setEditHours(e.target.value)}
+                    placeholder="e.g. Mon–Sat, 7am–3pm"
+                    style={{ width: '100%', background: '#111', border: '1px solid #333', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Phone</p>
+                  <input
+                    value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    style={{ width: '100%', background: '#111', border: '1px solid #333', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <button
+                  onClick={handleSaveEdits}
+                  disabled={saving}
+                  style={{ padding: '11px 0', borderRadius: 10, border: 'none', background: saving ? '#D97706' : '#F59E0B', color: 'black', fontWeight: 800, fontSize: 14, cursor: saving ? 'default' : 'pointer' }}
+                >
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tags + hours */}
-        {(vendor.cuisine_tags?.length > 0 || vendor.hours) && (
+        {(vendor.cuisine_tags?.length > 0 || vendor.hours || vendor.phone) && (
           <div style={{ marginBottom: 20 }}>
             {vendor.hours && (
-              <p style={{ margin: '0 0 10px', fontSize: 13, color: '#6B7280' }}>🕐 {vendor.hours}</p>
+              <p style={{ margin: '0 0 6px', fontSize: 13, color: '#6B7280' }}>🕐 {vendor.hours}</p>
+            )}
+            {vendor.phone && (
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: '#6B7280' }}>📞 {vendor.phone}</p>
             )}
             {vendor.cuisine_tags?.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -189,9 +408,21 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
 
-        {/* Discoverer */}
+        {/* Claimed by / Discoverer */}
+        {isClaimed && claimerName && !isOwner && (
+          <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 12, padding: '12px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🏷️</span>
+            <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF' }}>
+              Managed by{' '}
+              <Link href={`/user/${vendor.claimed_by}`} style={{ color: '#F59E0B', textDecoration: 'none', fontWeight: 700 }}>
+                {claimerName}
+              </Link>
+            </p>
+          </div>
+        )}
+
         {isManual && vendor.users?.name && (
-          <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 12, padding: '12px 14px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.1)', borderRadius: 12, padding: '12px 14px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 18 }}>📍</span>
             <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF' }}>
               Discovered by{' '}

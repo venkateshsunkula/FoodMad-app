@@ -140,6 +140,17 @@ export default function Home() {
       .eq('user_id', userId)
       .eq('read', false)
     setUnreadCount(count ?? 0)
+
+    // Show a browser notification once per session when there are unread items
+    if (count && count > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      if (!sessionStorage.getItem('foodmad_notified')) {
+        sessionStorage.setItem('foodmad_notified', '1')
+        new Notification('foodmad', {
+          body: `You have ${count} new notification${count > 1 ? 's' : ''}`,
+          icon: '/icons/icon-192.png',
+        })
+      }
+    }
   }
 
   async function loadDbUser(authUser: any) {

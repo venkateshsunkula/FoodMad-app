@@ -8,6 +8,16 @@ import BottomNav from '../components/bottom-nav'
 
 type Tab = 'vendors' | 'dishes' | 'people'
 
+const CITIES = [
+  'Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai',
+  'Kolkata', 'Pune', 'Ahmedabad', 'Visakhapatnam', 'Kochi',
+]
+
+const CUISINES = [
+  'Chaat', 'Momos', 'Biryani', 'South Indian', 'Dosa',
+  'Rolls', 'Chinese', 'Sweets', 'Juice', 'Tea/Coffee',
+]
+
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -26,35 +36,43 @@ export default function SearchPage() {
   const [dishes, setDishes] = useState<any[]>([])
   const [people, setPeople] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [filterCity, setFilterCity] = useState('')
+  const [filterCuisine, setFilterCuisine] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
     const q = query.trim()
-    if (!q) { setVendors([]); setDishes([]); setPeople([]); return }
+    if (!q && !filterCity && !filterCuisine) { setVendors([]); setDishes([]); setPeople([]); return }
     const timer = setTimeout(() => runSearch(q), 300)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, filterCity, filterCuisine])
 
   async function runSearch(q: string) {
     setLoading(true)
+
+    // Build vendor query
+    let vendorQ = supabase
+      .from('vendors')
+      .select('id, name, type, neighborhood, city, source, cuisine_tags, is_verified, claimed_by')
+    if (q) vendorQ = vendorQ.ilike('name', `%${q}%`)
+    if (filterCity) vendorQ = vendorQ.eq('city', filterCity)
+    if (filterCuisine) vendorQ = vendorQ.contains('cuisine_tags', [filterCuisine])
+
     const [{ data: vendorResults }, { data: dishResults }, { data: peopleResults }] = await Promise.all([
-      supabase
-        .from('vendors')
-        .select('id, name, type, neighborhood, city, source, cuisine_tags')
-        .ilike('name', `%${q}%`)
-        .limit(20),
-      supabase
+      vendorQ.limit(30),
+      q ? supabase
         .from('meal_logs')
         .select('id, dish_name, rating, photo_url, logged_at, vendor_id, vendors(id, name), users!user_id(name)')
         .ilike('dish_name', `%${q}%`)
         .order('logged_at', { ascending: false })
-        .limit(30),
-      supabase
+        .limit(30) : Promise.resolve({ data: [] }),
+      q ? supabase
         .from('users')
         .select('id, name, avatar_url, city')
         .ilike('name', `%${q}%`)
-        .limit(20),
+        .limit(20) : Promise.resolve({ data: [] }),
     ])
     setVendors(vendorResults ?? [])
     setDishes(dishResults ?? [])
@@ -62,7 +80,8 @@ export default function SearchPage() {
     setLoading(false)
   }
 
-  const isEmpty = query.trim() === ''
+  const activeFilterCount = [filterCity, filterCuisine].filter(Boolean).length
+  const isEmpty = !query.trim() && !filterCity && !filterCuisine
   const currentCount = tab === 'vendors' ? vendors.length : tab === 'dishes' ? dishes.length : people.length
   const noResults = !loading && !isEmpty && currentCount === 0
 
@@ -82,7 +101,7 @@ export default function SearchPage() {
         borderBottom: '1px solid #1a1a1a',
         padding: 'calc(env(safe-area-inset-top, 0px) + 12px) 16px 0',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 20, cursor: 'pointer', padding: 0, flexShrink: 0 }}>←</button>
           <div style={{ flex: 1, position: 'relative' }}>
             <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -105,7 +124,74 @@ export default function SearchPage() {
               <button onClick={() => setQuery('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: 0 }}>✕</button>
             )}
           </div>
+          {/* Filter toggle */}
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            style={{
+              flexShrink: 0, padding: '10px 12px', borderRadius: 10,
+              border: activeFilterCount > 0 ? '1px solid #F59E0B' : '1px solid #2a2a2a',
+              background: activeFilterCount > 0 ? 'rgba(245,158,11,0.1)' : '#1a1a1a',
+              color: activeFilterCount > 0 ? '#F59E0B' : '#6B7280',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', position: 'relative',
+            }}
+          >
+            ⚙️{activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
+          </button>
         </div>
+
+        {/* Filter panel */}
+        {showFilters && (
+          <div style={{ padding: '0 0 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* City filter */}
+            <div>
+              <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#6B7280', textTransform: 'uppercase' }}>City</p>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
+                {CITIES.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setFilterCity(filterCity === c ? '' : c)}
+                    style={{
+                      flexShrink: 0, padding: '6px 14px', borderRadius: 20,
+                      border: filterCity === c ? '1px solid #F59E0B' : '1px solid #252525',
+                      background: filterCity === c ? 'rgba(245,158,11,0.1)' : '#111',
+                      color: filterCity === c ? '#F59E0B' : '#9CA3AF',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >{c}</button>
+                ))}
+              </div>
+            </div>
+            {/* Cuisine filter */}
+            {tab === 'vendors' && (
+              <div>
+                <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#6B7280', textTransform: 'uppercase' }}>Cuisine</p>
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', flexWrap: 'wrap' }}>
+                  {CUISINES.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setFilterCuisine(filterCuisine === c ? '' : c)}
+                      style={{
+                        flexShrink: 0, padding: '6px 14px', borderRadius: 20,
+                        border: filterCuisine === c ? '1px solid #F59E0B' : '1px solid #252525',
+                        background: filterCuisine === c ? 'rgba(245,158,11,0.1)' : '#111',
+                        color: filterCuisine === c ? '#F59E0B' : '#9CA3AF',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >{c}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setFilterCity(''); setFilterCuisine('') }}
+                style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex' }}>
@@ -133,7 +219,7 @@ export default function SearchPage() {
         <div style={{ padding: '60px 24px', textAlign: 'center' }}>
           <p style={{ fontSize: 40, marginBottom: 12 }}>🔍</p>
           <p style={{ fontSize: 16, fontWeight: 700, color: '#9CA3AF', marginBottom: 6 }}>Find anything</p>
-          <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>Search vendors, dishes, or people by name</p>
+          <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>Search vendors, dishes, or people — or use the filter to browse by city</p>
         </div>
       )}
 
@@ -149,7 +235,7 @@ export default function SearchPage() {
         <div style={{ padding: '48px 24px', textAlign: 'center' }}>
           <p style={{ fontSize: 32, marginBottom: 10 }}>🤷</p>
           <p style={{ fontSize: 15, color: '#9CA3AF', fontWeight: 600, marginBottom: 6 }}>No {tab} found</p>
-          <p style={{ fontSize: 13, color: '#6B7280' }}>Try a different spelling</p>
+          <p style={{ fontSize: 13, color: '#6B7280' }}>Try a different spelling or adjust your filters</p>
         </div>
       )}
 
@@ -168,7 +254,14 @@ export default function SearchPage() {
                   {v.source === 'manual' ? '📍' : '🍴'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: '0 0 3px', fontSize: 15, fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</p>
+                    {(v.is_verified || v.claimed_by) && (
+                      <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: v.is_verified ? '#000' : '#F59E0B', background: v.is_verified ? '#F59E0B' : 'transparent', border: v.is_verified ? 'none' : '1px solid rgba(245,158,11,0.5)', padding: '1px 6px', borderRadius: 10 }}>
+                        {v.is_verified ? '✓ Verified' : '✓'}
+                      </span>
+                    )}
+                  </div>
                   <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>
                     {[v.neighborhood, v.city].filter(Boolean).join(', ') || v.type?.replace(/_/g, ' ')}
                   </p>
@@ -217,7 +310,6 @@ export default function SearchPage() {
           {people.map(u => (
             <Link key={u.id} href={`/user/${u.id}`} style={{ textDecoration: 'none' }}>
               <div style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                {/* Avatar */}
                 <div style={{
                   width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
                   background: '#252525', border: '2px solid #333',

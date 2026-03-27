@@ -34,6 +34,8 @@ export default function FeedPage() {
   const [newVendors, setNewVendors] = useState<any[]>([])
   const [topSpots, setTopSpots] = useState<any[]>([])
   const [exploreLoaded, setExploreLoaded] = useState(false)
+  const [exploreCity, setExploreCity] = useState<string>('All')
+  const [exploreCities, setExploreCities] = useState<string[]>([])
 
   useEffect(() => { init() }, [])
 
@@ -70,7 +72,7 @@ export default function FeedPage() {
     const [{ data: recentLogs }, { data: recentVendors }, { data: allLogs }] = await Promise.all([
       // Trending: recent logs for dish grouping
       supabase.from('meal_logs')
-        .select('dish_name, photo_url, rating, vendor_id, vendors(id, name)')
+        .select('dish_name, photo_url, rating, vendor_id, vendors(id, name, city)')
         .gte('logged_at', sevenDaysAgo)
         .limit(200),
       // New vendors added in last 30 days
@@ -87,24 +89,25 @@ export default function FeedPage() {
     ])
 
     // Build trending dishes — group by dish name
-    const dishMap: Record<string, { count: number; totalRating: number; photo: string | null; vendorName: string; vendorId: string }> = {}
+    const dishMap: Record<string, { count: number; totalRating: number; photo: string | null; vendorName: string; vendorId: string; city: string }> = {}
     for (const log of recentLogs ?? []) {
       const key = log.dish_name?.toLowerCase()
       if (!key) continue
-      if (!dishMap[key]) dishMap[key] = { count: 0, totalRating: 0, photo: null, vendorName: (log.vendors as any)?.name ?? '', vendorId: log.vendor_id }
+      const v = log.vendors as any
+      if (!dishMap[key]) dishMap[key] = { count: 0, totalRating: 0, photo: null, vendorName: v?.name ?? '', vendorId: log.vendor_id, city: v?.city ?? '' }
       dishMap[key].count++
       dishMap[key].totalRating += log.rating ?? 0
       if (!dishMap[key].photo && log.photo_url) dishMap[key].photo = log.photo_url
     }
     const trending = Object.entries(dishMap)
       .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 10)
+      .slice(0, 40)
       .map(([name, data]) => ({ name, ...data, avgRating: (data.totalRating / data.count).toFixed(1) }))
     setTrendingDishes(trending)
 
     setNewVendors(recentVendors ?? [])
 
-    // Build top spots — group by vendor, min 3 logs
+    // Build top spots — group by vendor, min 2 logs
     const vendorMap: Record<string, { totalRating: number; count: number; vendor: any }> = {}
     for (const log of allLogs ?? []) {
       if (!log.vendor_id || !log.vendors) continue
@@ -115,9 +118,15 @@ export default function FeedPage() {
     const spots = Object.values(vendorMap)
       .filter(v => v.count >= 2)
       .sort((a, b) => (b.totalRating / b.count) - (a.totalRating / a.count))
-      .slice(0, 8)
+      .slice(0, 30)
       .map(v => ({ ...v.vendor, avgRating: (v.totalRating / v.count).toFixed(1), logCount: v.count }))
     setTopSpots(spots)
+
+    // Collect unique cities
+    const citySet = new Set<string>()
+    for (const d of trending) { if (d.city) citySet.add(d.city) }
+    for (const s of spots) { if (s.city) citySet.add(s.city) }
+    setExploreCities(Array.from(citySet).sort())
   }
 
   function handleTabChange(t: Tab) {
@@ -220,6 +229,27 @@ export default function FeedPage() {
       {tab === 'explore' && (
         <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 32 }}>
 
+          {/* City filter */}
+          {exploreCities.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 4px', scrollbarWidth: 'none' }}>
+              {['All', ...exploreCities].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setExploreCity(c)}
+                  style={{
+                    flexShrink: 0, padding: '7px 16px', borderRadius: 20,
+                    border: exploreCity === c ? '1px solid #F59E0B' : '1px solid #252525',
+                    background: exploreCity === c ? 'rgba(245,158,11,0.12)' : '#141414',
+                    color: exploreCity === c ? '#F59E0B' : '#6B7280',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {c === 'All' ? '🌍 All cities' : `📍 ${c}`}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Dish rankings CTA */}
           <Link href="/dishes" style={{ textDecoration: 'none' }}>
             <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.04) 100%)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -233,13 +263,13 @@ export default function FeedPage() {
           </Link>
 
           {/* Trending dishes */}
-          {trendingDishes.length > 0 && (
+          {trendingDishes.filter(d => exploreCity === 'All' || d.city === exploreCity).length > 0 && (
             <section>
               <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#F59E0B' }}>
                 🔥 Trending This Week
               </p>
               <div style={{ display: 'flex', gap: 10, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 4px', scrollbarWidth: 'none' }}>
-                {trendingDishes.map((dish, i) => (
+                {trendingDishes.filter(d => exploreCity === 'All' || d.city === exploreCity).slice(0, 10).map((dish, i) => (
                   <Link key={dish.name} href={`/vendor/${dish.vendorId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
                     <div style={{ width: 140, background: '#1a1a1a', borderRadius: 14, overflow: 'hidden', border: '1px solid #252525' }}>
                       <div style={{ height: 90, background: '#252525', position: 'relative' }}>
@@ -264,13 +294,13 @@ export default function FeedPage() {
           )}
 
           {/* Top spots */}
-          {topSpots.length > 0 && (
+          {topSpots.filter(v => exploreCity === 'All' || v.city === exploreCity).length > 0 && (
             <section>
               <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#F59E0B' }}>
                 ⭐ Top Spots
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {topSpots.map((v, i) => (
+                {topSpots.filter(v => exploreCity === 'All' || v.city === exploreCity).slice(0, 8).map((v, i) => (
                   <Link key={v.id} href={`/vendor/${v.id}`} style={{ textDecoration: 'none' }}>
                     <div style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, background: i < 3 ? 'rgba(245,158,11,0.12)' : '#252525', border: `1px solid ${i < 3 ? 'rgba(245,158,11,0.3)' : '#333'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
