@@ -177,6 +177,49 @@ export default function ProfilePage() {
     : null
   const latestLog = mealLogs[0] ?? null
 
+  // ── Streak calculation ────────────────────────────────────────────
+  const streak = (() => {
+    if (!mealLogs.length) return { current: 0, best: 0, loggedToday: false }
+    const dates = [...new Set(mealLogs.map(l => l.logged_at?.slice(0, 10)))].filter(Boolean).sort().reverse() as string[]
+    const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const loggedToday = dates[0] === today
+
+    let current = 0
+    if (dates[0] === today || dates[0] === yesterday) {
+      let prev = new Date(dates[0])
+      for (const d of dates) {
+        const cur = new Date(d)
+        const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000)
+        if (diff <= 1) { current++; prev = cur } else break
+      }
+    }
+
+    let best = current, run = 1
+    for (let i = 1; i < dates.length; i++) {
+      const diff = Math.round((new Date(dates[i-1]).getTime() - new Date(dates[i]).getTime()) / 86400000)
+      if (diff === 1) { run++; if (run > best) best = run } else run = 1
+    }
+    return { current, best, loggedToday }
+  })()
+
+  // ── Badges ────────────────────────────────────────────────────────
+  const BADGES = [
+    { icon: '🍽️', name: 'First Bite',      desc: 'Logged your first meal',     earned: mealLogs.length >= 1 },
+    { icon: '🥘', name: 'Regular',          desc: '10 meals logged',             earned: mealLogs.length >= 10 },
+    { icon: '🏆', name: 'Food Lover',       desc: '50 meals logged',             earned: mealLogs.length >= 50 },
+    { icon: '💯', name: 'Century',          desc: '100 meals logged',            earned: mealLogs.length >= 100 },
+    { icon: '🔥', name: 'On Fire',          desc: '3-day logging streak',        earned: streak.best >= 3 },
+    { icon: '⚡', name: 'Weekly Warrior',   desc: '7-day logging streak',        earned: streak.best >= 7 },
+    { icon: '🌟', name: 'Dedicated',        desc: '30-day logging streak',       earned: streak.best >= 30 },
+    { icon: '📍', name: 'Explorer',         desc: 'Discovered your first vendor',earned: vendorCount >= 1 },
+    { icon: '🗺️', name: 'Cartographer',    desc: 'Discovered 5+ vendors',       earned: vendorCount >= 5 },
+    { icon: '🍱', name: 'Variety Pack',     desc: 'Tried 10 different dishes',   earned: uniqueDishes >= 10 },
+    { icon: '🎨', name: 'Foodie Artist',    desc: 'Tried 25 different dishes',   earned: uniqueDishes >= 25 },
+  ]
+  const earnedBadges = BADGES.filter(b => b.earned)
+  const lockedBadges = BADGES.filter(b => !b.earned)
+
   if (loading) {
     return (
       <div style={{ height: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -277,6 +320,51 @@ export default function ProfilePage() {
           </div>
         </section>
 
+        {/* Streak card */}
+        {mealLogs.length > 0 && (
+          <section style={{ marginBottom: 20 }}>
+            <div style={{
+              background: streak.current >= 3
+                ? 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(239,68,68,0.08) 100%)'
+                : '#1a1a1a',
+              border: `1px solid ${streak.current >= 3 ? 'rgba(245,158,11,0.3)' : '#252525'}`,
+              borderRadius: 16, padding: '16px 20px',
+              display: 'flex', alignItems: 'center', gap: 16,
+            }}>
+              {/* Flame */}
+              <div style={{
+                width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                background: streak.current > 0 ? 'rgba(245,158,11,0.15)' : '#252525',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 26,
+              }}>
+                {streak.current > 0 ? '🔥' : '💤'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, color: streak.current > 0 ? '#F59E0B' : '#6B7280' }}>
+                    {streak.current}
+                  </span>
+                  <span style={{ fontSize: 14, color: '#9CA3AF', fontWeight: 600 }}>
+                    day streak
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>
+                  {streak.loggedToday
+                    ? '✓ Logged today — keep it up!'
+                    : streak.current > 0
+                    ? "Log something today to keep your streak!"
+                    : 'Start logging daily to build a streak'}
+                </p>
+              </div>
+              <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                <p style={{ margin: '0 0 2px', fontSize: 18, fontWeight: 800, color: '#9CA3AF' }}>{streak.best}</p>
+                <p style={{ margin: 0, fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Best</p>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Currently Obsessed */}
         {latestLog && (
           <section
@@ -333,6 +421,38 @@ export default function ProfilePage() {
             </div>
           ))}
         </section>
+
+        {/* Badges */}
+        {(earnedBadges.length > 0 || lockedBadges.length > 0) && (
+          <section style={{ marginBottom: 28 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#6B7280' }}>Badges</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {earnedBadges.map(b => (
+                <div key={b.name} title={b.desc} style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '8px 14px', borderRadius: 24,
+                  background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                  cursor: 'default',
+                }}>
+                  <span style={{ fontSize: 16 }}>{b.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>{b.name}</span>
+                </div>
+              ))}
+              {lockedBadges.map(b => (
+                <div key={b.name} title={b.desc} style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '8px 14px', borderRadius: 24,
+                  background: '#1a1a1a', border: '1px solid #252525',
+                  cursor: 'default', opacity: 0.45,
+                  filter: 'grayscale(1)',
+                }}>
+                  <span style={{ fontSize: 16 }}>{b.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>{b.name}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Tabs */}
         <nav style={{ display: 'flex', borderBottom: '1px solid #1a1a1a', marginBottom: 20, overflowX: 'auto' }}>

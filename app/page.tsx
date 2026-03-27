@@ -59,6 +59,7 @@ export default function Home() {
   const [showCitySwitcher, setShowCitySwitcher] = useState(false)
   const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null)
   const [activeCity, setActiveCity] = useState<string>('')
+  const [streakReminder, setStreakReminder] = useState<{ days: number } | null>(null)
 
   // Show onboarding on first visit
   useEffect(() => {
@@ -110,6 +111,28 @@ export default function Home() {
     }
   }
 
+  async function checkStreak(userId: string) {
+    const { data: logs } = await supabase
+      .from('meal_logs')
+      .select('logged_at')
+      .eq('user_id', userId)
+      .order('logged_at', { ascending: false })
+      .limit(60)
+    if (!logs?.length) return
+    const dates = [...new Set(logs.map((l: any) => l.logged_at?.slice(0, 10)))].filter(Boolean).sort().reverse() as string[]
+    const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    if (dates[0] === today) return // already logged today, no reminder needed
+    if (dates[0] !== yesterday) return // streak is already broken
+    // Count streak
+    let streak = 0, prev = new Date(yesterday)
+    for (const d of dates) {
+      const cur = new Date(d)
+      if (Math.round((prev.getTime() - cur.getTime()) / 86400000) <= 1) { streak++; prev = cur } else break
+    }
+    if (streak >= 2) setStreakReminder({ days: streak })
+  }
+
   async function fetchUnreadCount(userId: string) {
     const { count } = await supabase
       .from('notifications')
@@ -121,6 +144,7 @@ export default function Home() {
 
   async function loadDbUser(authUser: any) {
     fetchUnreadCount(authUser.id)
+    checkStreak(authUser.id)
     const { data } = await supabase
       .from('users')
       .select('*')
@@ -525,6 +549,41 @@ export default function Home() {
           >
             📍 Add new vendor
           </button>
+        </div>
+      )}
+
+      {/* Streak reminder toast */}
+      {streakReminder && (
+        <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a0a 0%, #1a1200 100%)',
+            border: '1px solid rgba(245,158,11,0.4)',
+            borderRadius: 16, padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            boxShadow: '0 4px 20px rgba(245,158,11,0.2)',
+          }}>
+            <span style={{ fontSize: 28, flexShrink: 0 }}>🔥</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#F59E0B' }}>
+                {streakReminder.days}-day streak at risk!
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>
+                Log something today to keep it going
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => { setStreakReminder(null); setLogPreSelected(null); if (authUser) setShowLog(true) }}
+                style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#F59E0B', color: 'black', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+              >
+                Log now
+              </button>
+              <button
+                onClick={() => setStreakReminder(null)}
+                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}
+              >✕</button>
+            </div>
+          </div>
         </div>
       )}
 
