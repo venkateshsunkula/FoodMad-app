@@ -6,7 +6,7 @@ export default function BottomNav({
   activePage,
   onPlusClick,
 }: {
-  activePage: 'map' | 'feed' | 'profile'
+  activePage: 'map' | 'search' | 'feed' | 'profile'
   onPlusClick: () => void
 }) {
   const activeColor = '#F59E0B'
@@ -29,9 +29,9 @@ export default function BottomNav({
         <span style={{ fontSize: 10, color: activePage === 'map' ? activeColor : inactiveColor }}>Map</span>
       </Link>
 
-      <Link href="/feed" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none' }}>
-        <span style={{ fontSize: 20, lineHeight: 1 }}>📰</span>
-        <span style={{ fontSize: 10, color: activePage === 'feed' ? activeColor : inactiveColor }}>Feed</span>
+      <Link href="/search" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none' }}>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>🔍</span>
+        <span style={{ fontSize: 10, color: activePage === 'search' ? activeColor : inactiveColor }}>Search</span>
       </Link>
 
       <button
@@ -44,6 +44,11 @@ export default function BottomNav({
         <span style={{ fontSize: 26, color: activeColor, fontWeight: 700, lineHeight: 1 }}>+</span>
         <span style={{ fontSize: 10, color: inactiveColor }}>Log</span>
       </button>
+
+      <Link href="/feed" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none' }}>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>📰</span>
+        <span style={{ fontSize: 10, color: activePage === 'feed' ? activeColor : inactiveColor }}>Feed</span>
+      </Link>
 
       <Link href="/profile" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none' }}>
         <span style={{ fontSize: 20, lineHeight: 1 }}>👤</span>
