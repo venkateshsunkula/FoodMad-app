@@ -105,7 +105,7 @@ export default function LogMeal({
       }
     }
 
-    const { error } = await supabase.from('meal_logs').insert({
+    const { data: logData, error } = await supabase.from('meal_logs').insert({
       vendor_id: selectedVendor.id,
       user_id: userId ?? null,
       dish_name: dishName,
@@ -118,7 +118,18 @@ export default function LogMeal({
       logged_at: new Date().toISOString(),
       lat: selectedVendor.lat,
       lng: selectedVendor.lng,
-    })
+    }).select('id').single()
+
+    // Notify vendor discoverer if someone else logged here
+    if (!error && userId && selectedVendor.added_by && selectedVendor.added_by !== userId) {
+      await supabase.from('notifications').insert({
+        user_id: selectedVendor.added_by,
+        type: 'log_at_vendor',
+        from_user_id: userId,
+        vendor_id: selectedVendor.id,
+        meal_log_id: logData?.id ?? null,
+      })
+    }
 
     setSaving(false)
     if (error) {

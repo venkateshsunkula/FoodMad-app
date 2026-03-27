@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/compress'
 import BottomNav from '../components/bottom-nav'
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const ALL_TAGS = ['🌶️ Spicy', '🍋 Tangy', '🥨 Crispy', '🧈 Creamy', '🌿 Fresh', '🔥 Hot', '🍬 Sweet', '🥩 Non-veg', '🥦 Veg', '⭐ Must-try', '🌙 Late night', '🌤️ Seasonal']
@@ -75,6 +77,13 @@ export default function ProfilePage() {
     setFollowing(followingData?.map(f => f.users).filter(Boolean) ?? [])
     setFollowers(followersData?.map(f => f.users).filter(Boolean) ?? [])
     setLoading(false)
+
+    const { count: unread } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+    setUnreadCount(unread ?? 0)
   }
 
   async function handleSignOut() {
@@ -188,7 +197,20 @@ export default function ProfilePage() {
         borderBottom: '1px solid #1a1a1a',
       }}>
         <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: '#F59E0B', fontSize: 22, cursor: 'pointer', padding: 0 }}>←</button>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontStyle: 'italic', color: '#F59E0B' }}>Profile</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontStyle: 'italic', color: '#F59E0B', flex: 1 }}>Profile</h1>
+        <Link href="/notifications" style={{ position: 'relative', textDecoration: 'none', marginRight: 8 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1a1a1a', border: '1px solid #252525', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </div>
+          {unreadCount > 0 && (
+            <div style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, background: '#EF4444', border: '2px solid #0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'white', padding: '0 3px' }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+        </Link>
         <button
           onClick={handleSignOut}
           disabled={signingOut}

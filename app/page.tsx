@@ -31,6 +31,7 @@ export default function Home() {
   const [pwaSignInOpen, setPwaSignInOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [unreadCount, setUnreadCount] = useState(0)
 
   // Show onboarding on first visit
   useEffect(() => {
@@ -82,7 +83,17 @@ export default function Home() {
     }
   }
 
+  async function fetchUnreadCount(userId: string) {
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+    setUnreadCount(count ?? 0)
+  }
+
   async function loadDbUser(authUser: any) {
+    fetchUnreadCount(authUser.id)
     const { data } = await supabase
       .from('users')
       .select('*')
@@ -257,7 +268,34 @@ export default function Home() {
       </APIProvider>
 
       {/* Sign-in / avatar button — top right with safe area */}
-      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, zIndex: 100 }}>
+      <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {authUser && (
+          <Link href="/notifications" style={{ position: 'relative', textDecoration: 'none' }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </div>
+            {unreadCount > 0 && (
+              <div style={{
+                position: 'absolute', top: -2, right: -2,
+                minWidth: 16, height: 16, borderRadius: 8,
+                background: '#EF4444', border: '2px solid #0a0a0a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 800, color: 'white', padding: '0 3px',
+              }}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
+          </Link>
+        )}
         {authUser ? (
           <button
             onClick={() => router.push('/profile')}

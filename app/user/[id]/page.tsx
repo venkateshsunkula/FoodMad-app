@@ -64,6 +64,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
         following_id: id,
         created_at: new Date().toISOString(),
       })
+      // Notify the person being followed
+      await supabase.from('notifications').insert({
+        user_id: id,
+        type: 'follow',
+        from_user_id: authUser.id,
+      })
       setIsFollowing(true)
     }
 
