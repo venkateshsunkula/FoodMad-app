@@ -220,6 +220,18 @@ export default function FeedPage() {
       {tab === 'explore' && (
         <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 32 }}>
 
+          {/* Dish rankings CTA */}
+          <Link href="/dishes" style={{ textDecoration: 'none' }}>
+            <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.04) 100%)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ fontSize: 32, flexShrink: 0 }}>🏆</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 3px', fontSize: 15, fontWeight: 800, color: 'white' }}>Dish Rankings</p>
+                <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Best Biryani, top Chaat, highest-rated dishes across all cities</p>
+              </div>
+              <span style={{ color: '#F59E0B', fontSize: 18, flexShrink: 0 }}>›</span>
+            </div>
+          </Link>
+
           {/* Trending dishes */}
           {trendingDishes.length > 0 && (
             <section>
