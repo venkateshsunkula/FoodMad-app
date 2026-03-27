@@ -43,7 +43,13 @@ export default function ProfilePage() {
   const [following, setFollowing] = useState<any[]>([])
   const [followers, setFollowers] = useState<any[]>([])
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editFields, setEditFields] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  const ALL_TAGS = ['🌶️ Spicy', '🍋 Tangy', '🥨 Crispy', '🧈 Creamy', '🌿 Fresh', '🔥 Hot', '🍬 Sweet', '🥩 Non-veg', '🥦 Veg', '⭐ Must-try', '🌙 Late night', '🌤️ Seasonal']
 
   useEffect(() => { init() }, [])
 
@@ -73,6 +79,45 @@ export default function ProfilePage() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.replace('/')
+  }
+
+  function openEdit(log: any) {
+    setEditFields({ dish_name: log.dish_name, rating: log.rating, price_inr: log.price_inr ?? '', note: log.note ?? '', tags: log.tags ?? [] })
+    setEditMode(true)
+    setConfirmDelete(false)
+  }
+
+  function closeDetail() {
+    setSelectedLog(null)
+    setEditMode(false)
+    setEditFields(null)
+    setConfirmDelete(false)
+  }
+
+  async function handleSaveEdit() {
+    if (!selectedLog || saving) return
+    setSaving(true)
+    const updates = {
+      dish_name: editFields.dish_name.trim(),
+      rating: editFields.rating,
+      price_inr: editFields.price_inr ? parseInt(editFields.price_inr) : null,
+      note: editFields.note.trim() || null,
+      tags: editFields.tags,
+    }
+    await supabase.from('meal_logs').update(updates).eq('id', selectedLog.id)
+    setMealLogs(prev => prev.map(l => l.id === selectedLog.id ? { ...l, ...updates } : l))
+    setSelectedLog((prev: any) => ({ ...prev, ...updates }))
+    setEditMode(false)
+    setSaving(false)
+  }
+
+  async function handleDelete() {
+    if (!selectedLog || saving) return
+    setSaving(true)
+    await supabase.from('meal_logs').delete().eq('id', selectedLog.id)
+    setMealLogs(prev => prev.filter(l => l.id !== selectedLog.id))
+    closeDetail()
+    setSaving(false)
   }
 
   async function handleUnfollow(targetId: string) {
@@ -407,29 +452,125 @@ export default function ProfilePage() {
 
       </main>
 
-      {/* Meal detail bottom sheet */}
+      {/* Meal detail / edit bottom sheet */}
       {selectedLog && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }} onClick={() => setSelectedLog(null)}>
-          <div style={{ width: '100%', background: '#111', borderRadius: '20px 20px 0 0', padding: '20px 20px 48px', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box', border: '1px solid #1a1a1a' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }} onClick={closeDetail}>
+          <div style={{ width: '100%', background: '#111', borderRadius: '20px 20px 0 0', padding: '20px 20px 36px', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box', border: '1px solid #1a1a1a' }} onClick={e => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2, margin: '0 auto 20px' }} />
-            {selectedLog.photo_url && (
-              <img src={selectedLog.photo_url} alt={selectedLog.dish_name} style={{ width: '100%', borderRadius: 14, maxHeight: 240, objectFit: 'cover', marginBottom: 16, display: 'block' }} />
+
+            {/* View mode */}
+            {!editMode && (
+              <>
+                {selectedLog.photo_url && (
+                  <img src={selectedLog.photo_url} alt={selectedLog.dish_name} style={{ width: '100%', borderRadius: 14, maxHeight: 240, objectFit: 'cover', marginBottom: 16, display: 'block' }} />
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, fontStyle: 'italic' }}>{selectedLog.dish_name}</h3>
+                  <span style={{ color: '#F59E0B', fontSize: 15, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{'★'.repeat(selectedLog.rating)}{'☆'.repeat(5 - selectedLog.rating)}</span>
+                </div>
+                <p style={{ margin: '0 0 4px', color: '#9CA3AF', fontSize: 14 }}>{selectedLog.vendors?.name}</p>
+                {selectedLog.price_inr && <p style={{ margin: '0 0 14px', color: '#F59E0B', fontSize: 14, fontWeight: 700 }}>₹{selectedLog.price_inr}</p>}
+                {selectedLog.tags?.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                    {selectedLog.tags.map((tag: string) => (
+                      <span key={tag} style={{ background: '#1a1a1a', border: '1px solid #333', padding: '4px 12px', borderRadius: 20, fontSize: 12, color: '#9CA3AF' }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {selectedLog.note && <p style={{ margin: '0 0 14px', color: '#E5E7EB', fontSize: 14, lineHeight: 1.6, fontStyle: 'italic' }}>"{selectedLog.note}"</p>}
+                <p style={{ margin: '0 0 20px', color: '#444', fontSize: 12 }}>{new Date(selectedLog.logged_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+
+                {/* Actions */}
+                {!confirmDelete ? (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => openEdit(selectedLog)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      ✏️ Edit
+                    </button>
+                    <button onClick={() => setConfirmDelete(true)} style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1px solid #333', background: 'transparent', color: '#EF4444', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      🗑️ Delete
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ background: '#1a1a1a', borderRadius: 14, padding: '16px', border: '1px solid #333' }}>
+                    <p style={{ margin: '0 0 14px', fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>Delete this meal log? This can't be undone.</p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: '1px solid #333', background: 'transparent', color: '#9CA3AF', fontSize: 14, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                      <button onClick={handleDelete} disabled={saving} style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: 'none', background: '#EF4444', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        {saving ? 'Deleting…' : 'Yes, delete'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, fontStyle: 'italic' }}>{selectedLog.dish_name}</h3>
-              <span style={{ color: '#F59E0B', fontSize: 15, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{'★'.repeat(selectedLog.rating)}{'☆'.repeat(5 - selectedLog.rating)}</span>
-            </div>
-            <p style={{ margin: '0 0 4px', color: '#9CA3AF', fontSize: 14 }}>{selectedLog.vendors?.name}</p>
-            {selectedLog.price_inr && <p style={{ margin: '0 0 14px', color: '#F59E0B', fontSize: 14, fontWeight: 700 }}>₹{selectedLog.price_inr}</p>}
-            {selectedLog.tags?.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-                {selectedLog.tags.map((tag: string) => (
-                  <span key={tag} style={{ background: '#1a1a1a', border: '1px solid #333', padding: '4px 12px', borderRadius: 20, fontSize: 12, color: '#9CA3AF' }}>{tag}</span>
-                ))}
-              </div>
+
+            {/* Edit mode */}
+            {editMode && editFields && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Edit Meal</h3>
+                  <button onClick={() => setEditMode(false)} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+
+                {/* Dish name */}
+                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F59E0B' }}>Dish Name</p>
+                <input
+                  value={editFields.dish_name}
+                  onChange={e => setEditFields((p: any) => ({ ...p, dish_name: e.target.value }))}
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '11px 14px', color: 'white', fontSize: 15, marginBottom: 16, outline: 'none' }}
+                />
+
+                {/* Rating */}
+                <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F59E0B' }}>Rating</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  {[1, 2, 3, 4, 5].map(r => (
+                    <button key={r} onClick={() => setEditFields((p: any) => ({ ...p, rating: r }))} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1px solid ${editFields.rating >= r ? '#F59E0B' : '#333'}`, background: editFields.rating >= r ? 'rgba(245,158,11,0.15)' : 'transparent', color: editFields.rating >= r ? '#F59E0B' : '#6B7280', fontSize: 18, cursor: 'pointer' }}>
+                      ★
+                    </button>
+                  ))}
+                </div>
+
+                {/* Price */}
+                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F59E0B' }}>Price (₹)</p>
+                <input
+                  type="number"
+                  value={editFields.price_inr}
+                  onChange={e => setEditFields((p: any) => ({ ...p, price_inr: e.target.value }))}
+                  placeholder="Optional"
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '11px 14px', color: 'white', fontSize: 15, marginBottom: 16, outline: 'none' }}
+                />
+
+                {/* Tags */}
+                <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F59E0B' }}>Tags</p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                  {ALL_TAGS.map(tag => {
+                    const active = editFields.tags.includes(tag)
+                    return (
+                      <button key={tag} onClick={() => setEditFields((p: any) => ({ ...p, tags: active ? p.tags.filter((t: string) => t !== tag) : [...p.tags, tag] }))}
+                        style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${active ? '#F59E0B' : '#333'}`, background: active ? 'rgba(245,158,11,0.15)' : 'transparent', color: active ? '#F59E0B' : '#9CA3AF', fontSize: 12, cursor: 'pointer' }}>
+                        {tag}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Note */}
+                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F59E0B' }}>Note</p>
+                <textarea
+                  value={editFields.note}
+                  onChange={e => setEditFields((p: any) => ({ ...p, note: e.target.value }))}
+                  placeholder="Optional"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '11px 14px', color: 'white', fontSize: 14, marginBottom: 20, outline: 'none', resize: 'none', fontFamily: 'inherit' }}
+                />
+
+                <button onClick={handleSaveEdit} disabled={saving || !editFields.dish_name.trim()} style={{ width: '100%', padding: '14px 0', borderRadius: 12, border: 'none', background: saving ? '#333' : '#F59E0B', color: saving ? '#9CA3AF' : 'black', fontSize: 15, fontWeight: 800, cursor: saving ? 'default' : 'pointer' }}>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </>
             )}
-            {selectedLog.note && <p style={{ margin: '0 0 14px', color: '#E5E7EB', fontSize: 14, lineHeight: 1.6, fontStyle: 'italic' }}>"{selectedLog.note}"</p>}
-            <p style={{ margin: 0, color: '#444', fontSize: 12 }}>{new Date(selectedLog.logged_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
         </div>
       )}
