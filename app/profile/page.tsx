@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [editFields, setEditFields] = useState<any>(null)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const ALL_TAGS = ['🌶️ Spicy', '🍋 Tangy', '🥨 Crispy', '🧈 Creamy', '🌿 Fresh', '🔥 Hot', '🍬 Sweet', '🥩 Non-veg', '🥦 Veg', '⭐ Must-try', '🌙 Late night', '🌤️ Seasonal']
@@ -77,6 +78,7 @@ export default function ProfilePage() {
   }
 
   async function handleSignOut() {
+    setSigningOut(true)
     await supabase.auth.signOut()
     router.replace('/')
   }
@@ -187,8 +189,20 @@ export default function ProfilePage() {
       }}>
         <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: '#F59E0B', fontSize: 22, cursor: 'pointer', padding: 0 }}>←</button>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontStyle: 'italic', color: '#F59E0B' }}>Profile</h1>
-        <button onClick={handleSignOut} style={{ background: 'none', border: '1px solid #333', color: '#6B7280', fontSize: 12, padding: '6px 12px', borderRadius: 20, cursor: 'pointer' }}>
-          Sign out
+        <button
+          onClick={handleSignOut}
+          disabled={signingOut}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: signingOut ? '#1a1a1a' : 'transparent',
+            border: '1px solid #333', color: signingOut ? '#444' : '#6B7280',
+            fontSize: 12, fontWeight: 700, padding: '7px 14px', borderRadius: 20,
+            cursor: signingOut ? 'default' : 'pointer', transition: 'all 0.2s',
+          }}
+        >
+          {signingOut
+            ? <><span style={{ width: 10, height: 10, border: '2px solid #444', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> Signing out…</>
+            : 'Sign out'}
         </button>
       </header>
 
