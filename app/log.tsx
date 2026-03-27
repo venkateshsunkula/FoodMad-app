@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { compressImage } from './lib/compress'
 
@@ -46,7 +46,15 @@ export default function LogMeal({
   const [step, setStep] = useState(preSelectedVendor ? 2 : 1)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [vendorSearch, setVendorSearch] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (step === 1) {
+      setTimeout(() => searchInputRef.current?.focus(), 150)
+    }
+  }, [step])
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -122,58 +130,110 @@ export default function LogMeal({
 
   // ── Step 1: Pick vendor ──────────────────────────────────────────
   if (step === 1) {
+    const filtered = vendors
+      .filter(v => v.lat && v.lng)
+      .filter(v => {
+        if (!vendorSearch.trim()) return true
+        const q = vendorSearch.toLowerCase()
+        return (
+          v.name?.toLowerCase().includes(q) ||
+          v.neighborhood?.toLowerCase().includes(q) ||
+          v.city?.toLowerCase().includes(q) ||
+          v.type?.toLowerCase().includes(q)
+        )
+      })
+
     return (
       <div style={{
         position: 'fixed', inset: 0,
         background: '#0a0a0a', color: 'white',
-        zIndex: 1000, overflowY: 'auto',
+        zIndex: 1000, display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '16px 20px',
           borderBottom: '1px solid #1a1a1a',
+          flexShrink: 0,
         }}>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 22, cursor: 'pointer' }}>✕</button>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>New Entry</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>Where did you eat?</span>
           <div style={{ width: 22 }} />
         </div>
 
-        <div style={{ padding: '20px 20px 100px' }}>
-          <p style={{ color: '#6B7280', fontSize: 13, marginBottom: 16 }}>Where did you eat?</p>
-          {vendors.filter(v => v.lat && v.lng).map((vendor) => (
-            <div
-              key={vendor.id}
-              onClick={() => { setSelectedVendor(vendor); setStep(2) }}
+        {/* Search bar */}
+        <div style={{ padding: '12px 16px 8px', flexShrink: 0 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: '#1a1a1a', border: '1px solid #252525',
+            borderRadius: 14, padding: '12px 16px',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={vendorSearch}
+              onChange={e => setVendorSearch(e.target.value)}
+              placeholder="Search restaurants, stalls..."
               style={{
-                background: '#1a1a1a',
-                border: '1px solid #252525',
-                borderRadius: 12,
-                padding: '14px 16px',
-                marginBottom: 10,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
+                flex: 1, background: 'none', border: 'none',
+                color: 'white', fontSize: 15, outline: 'none',
               }}
-            >
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: vendor.source === 'manual' ? '#F59E0B22' : '#1f1f1f',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, flexShrink: 0,
-              }}>
-                {vendor.source === 'manual' ? '📍' : '🍽️'}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: 'white' }}>{vendor.name}</p>
-                <p style={{ margin: '3px 0 0', color: '#6B7280', fontSize: 12 }}>
-                  {vendor.type?.replace('_', ' ')} · {vendor.neighborhood || vendor.city}
-                </p>
-              </div>
-              <span style={{ color: '#333', fontSize: 18 }}>›</span>
+            />
+            {vendorSearch && (
+              <button
+                onClick={() => setVendorSearch('')}
+                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >✕</button>
+            )}
+          </div>
+        </div>
+
+        {/* Vendor list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px 100px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', marginTop: 60, color: '#444' }}>
+              <p style={{ fontSize: 32, margin: '0 0 12px' }}>🔍</p>
+              <p style={{ fontSize: 15, color: '#6B7280' }}>No restaurants found</p>
+              <p style={{ fontSize: 13, color: '#444', marginTop: 4 }}>Try a different name or neighborhood</p>
             </div>
-          ))}
+          ) : (
+            filtered.map((vendor) => (
+              <div
+                key={vendor.id}
+                onClick={() => { setSelectedVendor(vendor); setStep(2) }}
+                style={{
+                  background: '#1a1a1a',
+                  border: '1px solid #252525',
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  marginBottom: 10,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
+              >
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  background: vendor.source === 'manual' ? '#F59E0B22' : '#1f1f1f',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18, flexShrink: 0,
+                }}>
+                  {vendor.source === 'manual' ? '📍' : '🍽️'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: 'white' }}>{vendor.name}</p>
+                  <p style={{ margin: '3px 0 0', color: '#6B7280', fontSize: 12 }}>
+                    {vendor.type?.replace('_', ' ')} · {vendor.neighborhood || vendor.city}
+                  </p>
+                </div>
+                <span style={{ color: '#333', fontSize: 18 }}>›</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     )
