@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodmad-v1'
+const CACHE_NAME = 'foodmad-v3'
 
 // Pages to cache immediately on install
 const PRECACHE_URLS = ['/', '/feed', '/profile']
@@ -28,9 +28,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('supabase.co')) return
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      // Return cached version if available, otherwise fetch from network
-      return cached || fetch(event.request).catch(() => cached)
-    })
+    // Network-first: always try to get fresh content, fall back to cache only if offline
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone()
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+        return response
+      })
+      .catch(() => caches.match(event.request))
   )
 })
