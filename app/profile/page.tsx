@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/compress'
 import BottomNav from '../components/bottom-nav'
 
 export default function ProfilePage() {
@@ -14,6 +15,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [selectedLog, setSelectedLog] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'diary'>('diary')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [customAvatar, setCustomAvatar] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { init() }, [])
 
@@ -61,7 +65,29 @@ export default function ProfilePage() {
     ? (mealLogs.reduce((sum, l) => sum + (l.rating || 0), 0) / mealLogs.length).toFixed(1)
     : null
 
-  const avatarUrl = authUser?.user_metadata?.avatar_url
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !authUser) return
+    setUploadingAvatar(true)
+    try {
+      const compressed = await compressImage(file)
+      const fileName = `avatar_${authUser.id}_${Date.now()}.jpg`
+      const { error: uploadError } = await supabase.storage
+        .from('photos')
+        .upload(fileName, compressed, { contentType: 'image/jpeg', upsert: true })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName)
+      const url = urlData.publicUrl
+      await supabase.from('users').update({ avatar_url: url }).eq('id', authUser.id)
+      setCustomAvatar(url)
+    } catch {
+      alert('Failed to upload photo. Try again.')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
+  const avatarUrl = customAvatar ?? dbUser?.avatar_url ?? authUser?.user_metadata?.avatar_url
   const displayName = dbUser?.name || authUser?.user_metadata?.full_name || 'Anonymous'
   const initials = displayName[0]?.toUpperCase()
 
@@ -99,6 +125,15 @@ export default function ProfilePage() {
 
         {/* Avatar + name hero */}
         <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '32px 0 28px' }}>
+          {/* Hidden file input */}
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            style={{ display: 'none' }}
+          />
+
           <div style={{ position: 'relative', marginBottom: 20 }}>
             {/* Glow behind avatar */}
             <div style={{
@@ -122,6 +157,22 @@ export default function ProfilePage() {
                 />
               )}
             </div>
+
+            {/* Camera button */}
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              style={{
+                position: 'absolute', bottom: 0, right: 0, zIndex: 2,
+                width: 28, height: 28, borderRadius: '50%',
+                background: uploadingAvatar ? '#333' : '#F59E0B',
+                border: '2px solid #0a0a0a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, cursor: uploadingAvatar ? 'default' : 'pointer',
+              }}
+            >
+              {uploadingAvatar ? '⏳' : '📷'}
+            </button>
           </div>
 
           <h2 style={{ margin: '0 0 6px', fontSize: 30, fontWeight: 700, fontStyle: 'italic', color: 'white' }}>
