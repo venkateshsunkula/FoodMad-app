@@ -71,16 +71,24 @@ export default function ProfilePage() {
     setUploadingAvatar(true)
     try {
       const compressed = await compressImage(file)
-      const fileName = `avatar_${authUser.id}_${Date.now()}.jpg`
+      // Use same root-level path pattern as meal photos (meal_*.jpg works, so avatars_*.jpg should too)
+      const fileName = `avatars_${authUser.id}_${Date.now()}.jpg`
       const { error: uploadError } = await supabase.storage
-        .from('photos').upload(fileName, compressed, { contentType: 'image/jpeg', upsert: true })
-      if (uploadError) throw uploadError
+        .from('photos').upload(fileName, compressed, { contentType: 'image/jpeg', upsert: false })
+      if (uploadError) {
+        console.error('Avatar upload error:', uploadError)
+        alert(`Upload failed: ${uploadError.message}`)
+        return
+      }
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName)
       const url = urlData.publicUrl
-      await supabase.from('users').update({ avatar_url: url }).eq('id', authUser.id)
+      const { error: dbError } = await supabase.from('users').update({ avatar_url: url }).eq('id', authUser.id)
+      if (dbError) console.error('DB update error:', dbError)
       setCustomAvatar(url)
-    } catch {
-      alert('Failed to upload photo. Try again.')
+      setDbUser((prev: any) => ({ ...prev, avatar_url: url }))
+    } catch (err: any) {
+      console.error('Avatar upload exception:', err)
+      alert(`Upload failed: ${err?.message ?? 'Unknown error'}`)
     } finally {
       setUploadingAvatar(false)
     }
