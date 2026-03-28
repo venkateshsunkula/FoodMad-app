@@ -208,9 +208,9 @@ export default function MapPage() {
   const mapCenter = userLocation ?? { lat: 17.385, lng: 78.4867 }
 
   const FILTERS = [
-    { key: 'all', label: '✦ All' },
-    { key: 'manual', label: '📍 Street Vendors' },
-    { key: 'google', label: '🍴 Restaurants' },
+    { key: 'all', label: 'All' },
+    { key: 'manual', label: 'Street Vendors' },
+    { key: 'google', label: 'Restaurants' },
     { key: 'Chaat', label: 'Chaat' },
     { key: 'Momos', label: 'Momos' },
     { key: 'Biryani', label: 'Biryani' },
@@ -237,14 +237,14 @@ export default function MapPage() {
       <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', left: 16, zIndex: 100 }}>
         <button
           onClick={() => setShowCitySwitcher(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 4, background: 'rgba(249,249,249,0.92)', backdropFilter: 'blur(12px)', border: '1px solid rgba(27,79,60,0.15)', color: '#1A1C1C', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 20, background: 'rgba(15,15,14,0.88)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', color: '#f5f0eb', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1B4F3C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d4692f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
             <circle cx="12" cy="10" r="3"/>
           </svg>
           {activeCity || 'My Location'}
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#404944" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888888" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
 
@@ -254,7 +254,7 @@ export default function MapPage() {
           <button
             key={f.key}
             onClick={() => setActiveFilter(f.key)}
-            style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 4, border: `1px solid ${activeFilter === f.key ? '#1B4F3C' : 'rgba(27,79,60,0.15)'}`, background: activeFilter === f.key ? '#1B4F3C' : 'rgba(249,249,249,0.92)', color: activeFilter === f.key ? 'white' : '#1A1C1C', fontSize: 13, fontWeight: activeFilter === f.key ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(10px)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+            style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: activeFilter === f.key ? 'none' : '1px solid rgba(255,255,255,0.1)', background: activeFilter === f.key ? '#d4692f' : 'rgba(15,15,14,0.85)', color: activeFilter === f.key ? 'white' : '#aaaaaa', fontSize: 13, fontWeight: activeFilter === f.key ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(10px)' }}
           >
             {f.label}
           </button>
@@ -267,7 +267,7 @@ export default function MapPage() {
           <CityPanner target={mapTarget} />
           {filteredVendors.map((vendor) => (
             <AdvancedMarker key={vendor.id} position={{ lat: vendor.lat, lng: vendor.lng }} onClick={() => { setSelectedVendor(vendor); setShowActionMenu(false) }}>
-              <Pin background={vendor.source === 'manual' ? '#1B4F3C' : '#9CA3AF'} borderColor={vendor.source === 'manual' ? '#003827' : '#6B7280'} glyphColor="#FFFFFF" />
+              <Pin background={vendor.source === 'manual' ? '#d4692f' : '#555555'} borderColor={vendor.source === 'manual' ? '#bf5a28' : '#444444'} glyphColor="#1c1916" />
             </AdvancedMarker>
           ))}
         </Map>
@@ -280,32 +280,32 @@ export default function MapPage() {
       <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: 16, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8 }}>
         {authUser && (
           <Link href="/notifications" style={{ position: 'relative', textDecoration: 'none' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(249,249,249,0.92)', backdropFilter: 'blur(12px)', border: '1px solid rgba(27,79,60,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B4F3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(15,15,14,0.88)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888888" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </div>
             {unreadCount > 0 && (
-              <div style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, background: '#EF4444', border: '2px solid #F9F9F9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'white', padding: '0 3px' }}>
+              <div style={{ position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8, background: '#EF4444', border: '2px solid #0f0f0e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#f5f0eb', padding: '0 3px' }}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </div>
             )}
           </Link>
         )}
         {authUser ? (
-          <button onClick={() => router.push('/profile')} title="Profile" style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid #1B4F3C', padding: 0, overflow: 'hidden', cursor: 'pointer', background: '#F3F3F3', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }}>
-            <span style={{ color: '#1B4F3C', fontSize: 18, position: 'absolute', fontWeight: 700 }}>{(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}</span>
+          <button onClick={() => router.push('/profile')} title="Profile" style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid #d4692f', padding: 0, overflow: 'hidden', cursor: 'pointer', background: '#1c1916', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#d4692f', fontSize: 18, position: 'absolute', fontWeight: 700 }}>{(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}</span>
             {authUser.user_metadata?.avatar_url && (
               <img src={authUser.user_metadata.avatar_url} alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
             )}
           </button>
         ) : (
-          <button onClick={handleSignIn} disabled={signingIn} style={{ padding: '10px 18px', borderRadius: 4, border: '1px solid #1B4F3C', background: signingIn ? '#1B4F3C' : 'rgba(249,249,249,0.92)', color: signingIn ? 'white' : '#1B4F3C', fontSize: 14, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, backdropFilter: 'blur(12px)', boxShadow: '0 2px 16px rgba(0,0,0,0.1)' }}>
+          <button onClick={handleSignIn} disabled={signingIn} style={{ padding: '10px 18px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', background: signingIn ? '#d4692f' : 'rgba(15,15,14,0.88)', color: signingIn ? 'white' : '#f5f0eb', fontSize: 14, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, backdropFilter: 'blur(12px)' }}>
             {signingIn ? (
               <><span style={{ width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Signing in…</>
             ) : (
-              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#1B4F3C"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#1B4F3C" strokeWidth="2" strokeLinecap="round"/></svg>Sign in</>
+              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#d4692f"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#d4692f" strokeWidth="2" strokeLinecap="round"/></svg>Sign in</>
             )}
           </button>
         )}
@@ -313,20 +313,20 @@ export default function MapPage() {
 
       {pwaSignInOpen && !authUser && (
         <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
-          <div style={{ background: '#FFFFFF', border: '1px solid rgba(27,79,60,0.2)', borderRadius: 4, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+          <div style={{ background: '#1c1916', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24, flexShrink: 0 }}>↩</span>
             <div style={{ flex: 1 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#1A1C1C' }}>Finish sign-in in Safari</p>
-              <p style={{ margin: 0, fontSize: 12, color: '#707974' }}>Then come back here — you'll be signed in automatically</p>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#f5f0eb' }}>Finish sign-in in Safari</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#888888' }}>Then come back here — you'll be signed in automatically</p>
             </div>
-            <button onClick={() => { setPwaSignInOpen(false); checkCookieSession() }} style={{ background: 'none', border: 'none', color: '#404944', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+            <button onClick={() => { setPwaSignInOpen(false); checkCookieSession() }} style={{ background: 'none', border: 'none', color: '#888888', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
           </div>
         </div>
       )}
 
       {activeFilter !== 'all' && (
         <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 116px)', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-          <div style={{ background: 'rgba(249,249,249,0.92)', backdropFilter: 'blur(10px)', border: '1px solid rgba(27,79,60,0.15)', borderRadius: 4, padding: '5px 14px', fontSize: 12, color: '#404944', whiteSpace: 'nowrap' }}>
+          <div style={{ background: 'rgba(15,15,14,0.88)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#aaaaaa', whiteSpace: 'nowrap' }}>
             {filteredVendors.length === 0 ? 'No matches' : `${filteredVendors.length} on map`}
           </div>
         </div>
@@ -334,20 +334,20 @@ export default function MapPage() {
 
       {/* Vendor popup */}
       {selectedVendor && (
-        <div style={{ position: 'fixed', bottom: 72, left: 16, right: 16, background: 'rgba(249,249,249,0.85)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', color: '#1A1C1C', borderRadius: 4, padding: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(192,201,194,0.2)', zIndex: 100 }}>
+        <div style={{ position: 'fixed', bottom: 72, left: 16, right: 16, background: 'rgba(22,20,18,0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', color: '#f5f0eb', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.08)', zIndex: 100 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, fontFamily: 'Manrope, sans-serif', color: '#1A1C1C' }}>{selectedVendor.name}</h3>
-            <span style={{ background: selectedVendor.source === 'manual' ? '#1B4F3C' : '#C0C9C2', color: selectedVendor.source === 'manual' ? 'white' : '#404944', padding: '2px 8px', borderRadius: 2, fontSize: 12, fontWeight: 600 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#f5f0eb' }}>{selectedVendor.name}</h3>
+            <span style={{ background: selectedVendor.source === 'manual' ? 'rgba(212,105,47,0.2)' : '#252019', color: selectedVendor.source === 'manual' ? '#d4692f' : '#888888', padding: '2px 8px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
               {selectedVendor.source === 'manual' ? 'Vendor' : 'Restaurant'}
             </span>
           </div>
-          <p style={{ margin: '8px 0 4px', color: '#404944', fontSize: 14 }}>{selectedVendor.type?.replace('_', ' ')} • {selectedVendor.hours}</p>
+          <p style={{ margin: '8px 0 4px', color: '#888888', fontSize: 14 }}>{selectedVendor.type?.replace('_', ' ')} • {selectedVendor.hours}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
             {selectedVendor.cuisine_tags?.map((tag: string) => (
-              <span key={tag} style={{ background: '#F3F3F3', padding: '4px 10px', borderRadius: 2, fontSize: 12, color: '#404944' }}>{tag}</span>
+              <span key={tag} style={{ background: '#252019', padding: '4px 10px', borderRadius: 8, fontSize: 12, color: '#aaaaaa' }}>{tag}</span>
             ))}
           </div>
-          <Link href={`/vendor/${selectedVendor.id}`} style={{ display: 'block', marginTop: 14, padding: '10px 0', borderRadius: 4, background: '#1B4F3C', color: 'white', textAlign: 'center', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+          <Link href={`/vendor/${selectedVendor.id}`} style={{ display: 'block', marginTop: 14, padding: '10px 0', borderRadius: 10, background: '#d4692f', color: '#f5f0eb', textAlign: 'center', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
             View details →
           </Link>
         </div>
@@ -355,11 +355,11 @@ export default function MapPage() {
 
       {/* Action menu */}
       {showActionMenu && (
-        <div style={{ position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', background: '#FFFFFF', border: '1px solid rgba(192,201,194,0.2)', borderRadius: 4, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', zIndex: 201, minWidth: 180 }}>
-          <button onClick={() => { setShowActionMenu(false); if (requireAuth('log')) { setLogPreSelected(null); setShowLog(true) } }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', borderBottom: '1px solid #F3F3F3', color: '#1A1C1C', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
+        <div style={{ position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', background: '#1c1916', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', zIndex: 201, minWidth: 180 }}>
+          <button onClick={() => { setShowActionMenu(false); if (requireAuth('log')) { setLogPreSelected(null); setShowLog(true) } }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', borderBottom: '1px solid #252019', color: '#f5f0eb', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
             🍽️ Log a meal
           </button>
-          <button onClick={() => { setShowActionMenu(false); if (requireAuth('add-vendor')) setShowAddVendor(true) }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', color: '#1A1C1C', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
+          <button onClick={() => { setShowActionMenu(false); if (requireAuth('add-vendor')) setShowAddVendor(true) }} style={{ display: 'block', width: '100%', padding: '14px 20px', background: 'none', border: 'none', color: '#f5f0eb', fontSize: 15, textAlign: 'left', cursor: 'pointer' }}>
             📍 Add new vendor
           </button>
         </div>
@@ -368,15 +368,15 @@ export default function MapPage() {
       {/* Streak reminder */}
       {streakReminder && (
         <div style={{ position: 'fixed', bottom: 90, left: 16, right: 16, zIndex: 200 }}>
-          <div style={{ background: '#FFFFFF', border: '1px solid rgba(27,79,60,0.2)', borderRadius: 4, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 20px rgba(27,79,60,0.1)' }}>
+          <div style={{ background: '#1c1916', border: '1px solid rgba(212,105,47,0.3)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 28, flexShrink: 0 }}>🔥</span>
             <div style={{ flex: 1 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#1B4F3C' }}>{streakReminder.days}-day streak at risk!</p>
-              <p style={{ margin: 0, fontSize: 12, color: '#707974' }}>Log something today to keep it going</p>
+              <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#d4692f' }}>{streakReminder.days}-day streak at risk!</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#888888' }}>Log something today to keep it going</p>
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button onClick={() => { setStreakReminder(null); setLogPreSelected(null); if (authUser) setShowLog(true) }} style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: '#1B4F3C', color: 'white', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Log now</button>
-              <button onClick={() => setStreakReminder(null)} style={{ background: 'none', border: 'none', color: '#404944', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+              <button onClick={() => { setStreakReminder(null); setLogPreSelected(null); if (authUser) setShowLog(true) }} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#d4692f', color: '#f5f0eb', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Log now</button>
+              <button onClick={() => setStreakReminder(null)} style={{ background: 'none', border: 'none', color: '#888888', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>✕</button>
             </div>
           </div>
         </div>
@@ -384,18 +384,18 @@ export default function MapPage() {
 
       {/* City switcher bottom sheet */}
       {showCitySwitcher && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowCitySwitcher(false)}>
-          <div style={{ width: '100%', background: '#F9F9F9', borderRadius: '6px 6px 0 0', padding: '20px 20px calc(env(safe-area-inset-bottom, 0px) + 32px)', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-            <div style={{ width: 36, height: 4, background: '#C0C9C2', borderRadius: 2, margin: '0 auto 20px' }} />
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#404944', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Jump to city</p>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowCitySwitcher(false)}>
+          <div style={{ width: '100%', background: '#131210', borderRadius: '20px 20px 0 0', padding: '20px 20px calc(env(safe-area-inset-bottom, 0px) + 32px)', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, background: '#252019', borderRadius: 2, margin: '0 auto 20px' }} />
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888888', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Jump to city</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {CITIES.map(city => (
-                <button key={city.name} onClick={() => { setMapTarget({ lat: city.lat, lng: city.lng }); setActiveCity(city.name); setShowCitySwitcher(false) }} style={{ padding: '10px 18px', borderRadius: 4, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: 'none', background: activeCity === city.name ? '#1B4F3C' : '#F3F3F3', color: activeCity === city.name ? 'white' : '#1A1C1C', boxShadow: activeCity === city.name ? '0 2px 12px rgba(27,79,60,0.25)' : 'none' }}>
+                <button key={city.name} onClick={() => { setMapTarget({ lat: city.lat, lng: city.lng }); setActiveCity(city.name); setShowCitySwitcher(false) }} style={{ padding: '10px 18px', borderRadius: 24, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: 'none', background: activeCity === city.name ? '#d4692f' : '#1c1916', color: activeCity === city.name ? 'white' : '#f5f0eb' }}>
                   {city.name}
                 </button>
               ))}
             </div>
-            <button onClick={() => { if (userLocation) setMapTarget(userLocation); setActiveCity(''); setShowCitySwitcher(false) }} style={{ marginTop: 16, width: '100%', padding: '14px 0', borderRadius: 4, border: '1px solid #C0C9C2', background: 'transparent', color: '#404944', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button onClick={() => { if (userLocation) setMapTarget(userLocation); setActiveCity(''); setShowCitySwitcher(false) }} style={{ marginTop: 16, width: '100%', padding: '14px 0', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', background: 'transparent', color: '#888888', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
               Use my location
             </button>
@@ -407,18 +407,18 @@ export default function MapPage() {
 
       {/* Sign-in prompt */}
       {showSignInPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowSignInPrompt(false)}>
-          <div style={{ width: '100%', background: '#FFFFFF', borderRadius: '6px 6px 0 0', padding: '28px 24px 44px' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontFamily: 'Manrope, sans-serif', fontWeight: 800, color: '#1A1C1C' }}>Sign in to continue</h3>
-            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#707974' }}>{pendingAction === 'log' ? 'Sign in to log your meal and build your food diary.' : 'Sign in to pin new vendors and earn Discoverer credit.'}</p>
-            <button onClick={handleSignIn} disabled={signingIn} style={{ width: '100%', padding: '15px 14px', borderRadius: 4, border: '1px solid #C0C9C2', background: signingIn ? '#F3F3F3' : 'white', color: '#1A1C1C', fontSize: 15, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: signingIn ? 'none' : '0 2px 12px rgba(0,0,0,0.08)', transform: signingIn ? 'scale(0.98)' : 'scale(1)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1500, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowSignInPrompt(false)}>
+          <div style={{ width: '100%', background: '#1c1916', borderRadius: '20px 20px 0 0', padding: '28px 24px 44px' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#f5f0eb' }}>Sign in to continue</h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#888888' }}>{pendingAction === 'log' ? 'Sign in to log your meal and build your food diary.' : 'Sign in to pin new vendors and earn Discoverer credit.'}</p>
+            <button onClick={handleSignIn} disabled={signingIn} style={{ width: '100%', padding: '15px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: signingIn ? '#252019' : 'white', color: '#1c1916', fontSize: 15, fontWeight: 700, cursor: signingIn ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               {signingIn ? (
-                <><span style={{ width: 18, height: 18, border: '2px solid #C0C9C2', borderTopColor: '#1B4F3C', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Signing in…</>
+                <><span style={{ width: 18, height: 18, border: '2px solid #888888', borderTopColor: '#d4692f', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Signing in…</>
               ) : (
                 <><svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Continue with Google</>
               )}
             </button>
-            <button onClick={() => setShowSignInPrompt(false)} style={{ width: '100%', padding: 13, marginTop: 10, borderRadius: 4, border: '1px solid #C0C9C2', background: '#F3F3F3', color: '#404944', fontSize: 14, cursor: 'pointer' }}>Not now</button>
+            <button onClick={() => setShowSignInPrompt(false)} style={{ width: '100%', padding: 13, marginTop: 10, borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)', background: '#252019', color: '#888888', fontSize: 14, cursor: 'pointer' }}>Not now</button>
           </div>
         </div>
       )}
